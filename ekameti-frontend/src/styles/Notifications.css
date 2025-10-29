@@ -1,0 +1,171 @@
+/* Notifications page styling */
+
+.notifications-container {
+  @apply min-h-screen bg-gray-50;
+}
+
+/* header */
+.notifications-header {
+  @apply bg-gradient-to-r from-blue-600 to-indigo-700 py-8;
+}
+
+.notifications-header-content {
+  @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between;
+}
+
+.header-left {
+  @apply flex items-center gap-4;
+}
+
+.back-btn {
+  @apply flex items-center gap-2 text-white hover:text-blue-100 transition-colors;
+}
+
+.back-btn svg {
+  @apply w-5 h-5;
+}
+
+.page-title {
+  @apply text-3xl sm:text-4xl font-bold text-white;
+}
+
+.notification-count {
+  @apply text-blue-100 text-sm font-medium bg-white/20 px-4 py-2 rounded-full;
+}
+
+/* main content */
+.notifications-main {
+  @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10 pb-12;
+}
+
+/* filter tabs */
+.filter-tabs {
+  @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-2 mb-6 flex flex-wrap gap-2;
+}
+
+.filter-tab {
+  @apply flex-1 px-4 py-3 rounded-lg font-medium transition-all duration-200 text-gray-600 hover:bg-gray-50 text-center;
+}
+
+.filter-tab.active {
+  @apply bg-blue-600 text-white hover:bg-blue-700;
+}
+
+/* notifications list */
+.notifications-list {
+  @apply space-y-4;
+}
+
+.notification-card {
+  @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-6 flex items-start gap-4 hover:shadow-xl transition-all duration-300;
+}
+
+.notification-icon-wrapper {
+  @apply flex-shrink-0;
+}
+
+.notification-icon {
+  @apply w-12 h-12 rounded-full flex items-center justify-center;
+}
+
+.notification-icon svg {
+  @apply w-6 h-6;
+}
+
+.icon-request {
+  @apply bg-blue-50 text-blue-600;
+}
+
+.icon-success {
+  @apply bg-green-50 text-green-600;
+}
+
+.icon-error {
+  @apply bg-red-50 text-red-600;
+}
+
+.icon-pending {
+  @apply bg-yellow-50 text-yellow-600;
+}
+
+.notification-content {
+  @apply flex-1;
+}
+
+.notification-message {
+  @apply text-gray-900 font-semibold mb-1;
+}
+
+.notification-details {
+  @apply text-sm text-gray-600 mb-2;
+}
+
+.notification-time {
+  @apply text-xs text-gray-500;
+}
+
+.notification-actions {
+  @apply flex gap-3 flex-shrink-0;
+}
+
+.notification-btn {
+  @apply px-4 py-2 rounded-lg font-semibold transition-all duration-200 text-sm;
+}
+
+.notification-btn.approve {
+  @apply bg-green-50 text-green-700 hover:bg-green-600 hover:text-white border border-green-200;
+}
+
+.notification-btn.reject {
+  @apply bg-red-50 text-red-700 hover:bg-red-600 hover:text-white border border-red-200;
+}
+
+.notification-btn.view {
+  @apply bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white border border-blue-200;
+}
+
+/* loading state */
+.loading-state {
+  @apply flex flex-col items-center justify-center py-20;
+}
+
+.loading-spinner {
+  @apply w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4;
+}
+
+/* empty state */
+.empty-state {
+  @apply flex flex-col items-center justify-center py-20 text-center;
+}
+
+.empty-icon {
+  @apply w-20 h-20 text-gray-300 mb-4;
+}
+
+.empty-title {
+  @apply text-2xl font-bold text-gray-700 mb-2;
+}
+
+.empty-description {
+  @apply text-gray-500;
+}
+
+/* responsive design */
+@media (max-width: 768px) {
+  .notification-card {
+    @apply flex-col;
+  }
+
+  .notification-actions {
+    @apply w-full flex-col;
+  }
+
+  .notification-btn {
+    @apply w-full;
+  }
+
+  .filter-tab {
+    @apply flex-none min-w-[120px];
+  }
+}
+

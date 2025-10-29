@@ -1,0 +1,52 @@
+.invite-container {
+    @apply min-h-screen bg-gray-900 flex items-center justify-center text-white;
+  }
+  
+  .invite-box {
+    @apply bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md text-center;
+  }
+  
+  .invite-box h2 {
+    @apply text-2xl font-bold mb-4;
+  }
+  
+  .brand {
+    @apply text-green-400 text-3xl font-semibold mb-2;
+  }
+  
+  .invite-label {
+    @apply text-sm text-gray-400 text-left mb-1;
+  }
+  
+  .link-box {
+    @apply flex mb-4;
+  }
+  
+  .link-box input {
+    @apply w-full bg-gray-700 text-white p-2 rounded-l;
+  }
+  
+  .link-box button {
+    @apply bg-green-600 hover:bg-green-700 px-4 rounded-r;
+  }
+  
+  .email-invite {
+    @apply flex mb-4;
+  }
+  
+  .email-invite input {
+    @apply w-full bg-gray-700 p-2 rounded-l;
+  }
+  
+  .email-invite button {
+    @apply bg-blue-600 hover:bg-blue-700 px-4 rounded-r;
+  }
+  
+  .invited-list ul {
+    @apply text-left mt-2 text-sm text-green-300;
+  }
+  
+  .done-btn {
+    @apply w-full bg-green-600 text-white py-2 rounded mt-6 hover:bg-green-700;
+  }
+  

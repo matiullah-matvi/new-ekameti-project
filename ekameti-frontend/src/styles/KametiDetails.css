@@ -1,0 +1,736 @@
+/* Kameti Details page styling - modern and professional */
+
+/* main container */
+.details-container {
+  @apply min-h-screen bg-gray-50;
+}
+
+/* loading screen */
+.loading-screen {
+  @apply flex flex-col items-center justify-center min-h-screen;
+}
+
+.loading-spinner-large {
+  @apply w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4;
+}
+
+.loading-text {
+  @apply text-gray-600 text-lg;
+}
+
+/* error screen */
+.error-screen {
+  @apply flex flex-col items-center justify-center min-h-screen px-4;
+}
+
+.error-icon {
+  @apply w-20 h-20 text-red-500 mb-4;
+}
+
+.error-title {
+  @apply text-2xl font-bold text-gray-900 mb-2;
+}
+
+.error-message {
+  @apply text-gray-600 mb-6 text-center;
+}
+
+.error-btn {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors;
+}
+
+/* hero section */
+.details-hero {
+  @apply relative bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 py-8;
+}
+
+.details-hero-content {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+}
+
+/* back button */
+.hero-back-btn {
+  @apply inline-flex items-center text-white/80 hover:text-white mb-6 cursor-pointer transition-colors;
+}
+
+.hero-back-btn svg {
+  @apply w-5 h-5 mr-2;
+}
+
+/* hero header */
+.hero-header {
+  @apply mb-8;
+}
+
+.hero-title-section {
+  @apply flex items-center gap-4 mb-3;
+}
+
+.hero-title {
+  @apply text-3xl sm:text-4xl font-bold text-white;
+}
+
+.status-badge {
+  @apply px-4 py-1 rounded-full text-sm font-semibold;
+}
+
+.status-pending {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.status-active {
+  @apply bg-green-100 text-green-800;
+}
+
+.status-completed {
+  @apply bg-blue-100 text-blue-800;
+}
+
+.status-cancelled {
+  @apply bg-red-100 text-red-800;
+}
+
+.hero-description {
+  @apply text-blue-100 text-lg;
+}
+
+/* hero stats */
+.hero-stats {
+  @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6;
+}
+
+.hero-stat-item {
+  @apply bg-white/10 backdrop-blur-sm rounded-xl p-4 flex items-center border border-white/20;
+}
+
+.hero-stat-icon {
+  @apply w-12 h-12 rounded-lg flex items-center justify-center mr-3 flex-shrink-0;
+}
+
+.hero-stat-icon svg {
+  @apply w-6 h-6 text-white;
+}
+
+.hero-stat-content {
+  @apply flex flex-col;
+}
+
+.hero-stat-label {
+  @apply text-blue-100 text-sm;
+}
+
+.hero-stat-value {
+  @apply text-white text-xl font-bold;
+}
+
+/* hero actions */
+.hero-actions {
+  @apply flex flex-wrap gap-3;
+}
+
+.hero-action-btn {
+  @apply flex items-center px-6 py-3 rounded-lg font-semibold transition-all duration-200;
+}
+
+.hero-action-btn svg {
+  @apply w-5 h-5 mr-2;
+}
+
+.hero-action-btn.primary {
+  @apply bg-white text-blue-700 hover:bg-blue-50 shadow-lg hover:shadow-xl;
+}
+
+.hero-action-btn.secondary {
+  @apply bg-blue-600/30 text-white border-2 border-white/20 hover:bg-blue-500/40 backdrop-blur-sm;
+}
+
+.hero-action-btn.disabled {
+  @apply bg-gray-300/30 text-gray-200 border-2 border-gray-400/20 cursor-not-allowed backdrop-blur-sm;
+  opacity: 0.7;
+}
+
+.hero-action-btn.disabled:hover {
+  @apply bg-gray-300/30;
+}
+
+/* main content */
+.details-main {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 relative z-10 pb-12;
+}
+
+/* tabs */
+.tabs-container {
+  @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-2 mb-6 flex flex-wrap gap-2;
+}
+
+.tab-btn {
+  @apply flex items-center px-4 py-3 rounded-lg font-medium transition-all duration-200 text-gray-600 hover:bg-gray-50;
+}
+
+.tab-btn svg {
+  @apply w-5 h-5 mr-2;
+}
+
+.tab-btn.active {
+  @apply bg-blue-600 text-white hover:bg-blue-700;
+}
+
+/* tab content */
+.tab-content {
+  @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-6;
+}
+
+/* overview tab */
+.overview-grid {
+  @apply grid grid-cols-1 lg:grid-cols-2 gap-6;
+}
+
+.overview-card {
+  @apply bg-gray-50 rounded-xl p-6 border border-gray-200;
+}
+
+.overview-card.full-width {
+  @apply lg:col-span-2;
+}
+
+.card-title {
+  @apply text-lg font-bold text-gray-900 mb-4;
+}
+
+/* progress section */
+.progress-section {
+  @apply space-y-3;
+}
+
+.progress-info {
+  @apply flex justify-between items-center;
+}
+
+.progress-label {
+  @apply text-sm text-gray-600;
+}
+
+.progress-value {
+  @apply text-lg font-bold text-gray-900;
+}
+
+.progress-bar-container {
+  @apply h-3 bg-gray-200 rounded-full overflow-hidden;
+}
+
+.progress-bar-fill {
+  @apply h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-500;
+}
+
+.progress-percentage {
+  @apply text-sm text-blue-600 font-semibold;
+}
+
+/* financial grid */
+.financial-grid {
+  @apply grid grid-cols-2 gap-4;
+}
+
+.financial-item {
+  @apply flex flex-col;
+}
+
+.financial-label {
+  @apply text-sm text-gray-600 mb-1;
+}
+
+.financial-value {
+  @apply text-xl font-bold text-gray-900;
+}
+
+.financial-value.text-green {
+  @apply text-green-600;
+}
+
+.financial-value.text-yellow {
+  @apply text-yellow-600;
+}
+
+/* info grid */
+.info-grid {
+  @apply grid grid-cols-2 md:grid-cols-3 gap-4;
+}
+
+.info-item {
+  @apply flex flex-col;
+}
+
+.info-label {
+  @apply text-sm text-gray-600 mb-1;
+}
+
+.info-value {
+  @apply text-base font-semibold text-gray-900;
+}
+
+/* Note: capitalize class should be added directly in JSX, not via @apply */
+
+/* members section */
+.members-section {
+  @apply min-h-[400px];
+}
+
+.members-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+}
+
+.member-card {
+  @apply bg-gray-50 rounded-xl p-4 flex items-center gap-4 border border-gray-200 hover:border-blue-300 transition-colors;
+}
+
+.member-avatar {
+  @apply w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0;
+}
+
+.member-info {
+  @apply flex-1;
+}
+
+.member-name {
+  @apply font-semibold text-gray-900 mb-1;
+}
+
+.member-email {
+  @apply text-sm text-gray-600 mb-1;
+}
+
+.member-joined {
+  @apply text-xs text-gray-500;
+}
+
+.member-status {
+  @apply flex-shrink-0;
+}
+
+.payment-badge {
+  @apply px-3 py-1 rounded-full text-sm font-medium;
+}
+
+.payment-badge.paid {
+  @apply bg-green-100 text-green-800;
+}
+
+.payment-badge.unpaid {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+/* empty state */
+.empty-state-members {
+  @apply flex flex-col items-center justify-center py-16;
+}
+
+.empty-icon {
+  @apply w-16 h-16 text-gray-400 mb-4;
+}
+
+.empty-title {
+  @apply text-xl font-bold text-gray-900 mb-2;
+}
+
+.empty-description {
+  @apply text-gray-600 mb-6;
+}
+
+.empty-action-btn {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors;
+}
+
+/* payments section */
+.payments-section {
+  @apply space-y-4;
+}
+
+.payments-header {
+  @apply flex justify-between items-center mb-4;
+}
+
+.payments-title {
+  @apply text-xl font-bold text-gray-900;
+}
+
+.export-btn {
+  @apply flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors;
+}
+
+.export-btn svg {
+  @apply w-5 h-5 mr-2;
+}
+
+/* payments table */
+.payments-table-wrapper {
+  @apply overflow-x-auto rounded-xl border border-gray-200;
+}
+
+.payments-table {
+  @apply w-full;
+}
+
+.payments-table thead {
+  @apply bg-gray-50;
+}
+
+.payments-table th {
+  @apply px-6 py-4 text-left text-sm font-semibold text-gray-700;
+}
+
+.payments-table td {
+  @apply px-6 py-4 text-sm text-gray-900 border-t border-gray-200;
+}
+
+.table-member {
+  @apply flex items-center gap-3;
+}
+
+.table-avatar {
+  @apply w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0;
+}
+
+.table-name {
+  @apply font-medium text-gray-900;
+}
+
+.table-email {
+  @apply text-xs text-gray-500;
+}
+
+.table-amount {
+  @apply font-semibold text-gray-900;
+}
+
+.table-status-badge {
+  @apply px-3 py-1 rounded-full text-xs font-medium;
+}
+
+.table-status-badge.paid {
+  @apply bg-green-100 text-green-800;
+}
+
+.table-status-badge.pending {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.table-empty {
+  @apply text-center py-8 text-gray-500;
+}
+
+/* settings section */
+.settings-section {
+  @apply space-y-6;
+}
+
+.settings-card {
+  @apply bg-gray-50 rounded-xl p-6 border border-gray-200;
+}
+
+.settings-title {
+  @apply text-xl font-bold text-gray-900 mb-2;
+}
+
+.settings-description {
+  @apply text-gray-600 mb-6;
+}
+
+.settings-list {
+  @apply space-y-4 mb-6;
+}
+
+.setting-item {
+  @apply flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200;
+}
+
+.setting-info {
+  @apply flex-1;
+}
+
+.setting-label {
+  @apply font-semibold text-gray-900 mb-1;
+}
+
+.setting-desc {
+  @apply text-sm text-gray-600;
+}
+
+.setting-select {
+  @apply px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white;
+}
+
+/* toggle switch */
+.toggle-switch {
+  @apply relative inline-block w-12 h-6;
+}
+
+.toggle-switch input {
+  @apply opacity-0 w-0 h-0;
+}
+
+.toggle-slider {
+  @apply absolute cursor-pointer inset-0 bg-gray-300 rounded-full transition-all duration-300;
+}
+
+.toggle-slider:before {
+  @apply absolute content-[''] h-5 w-5 left-0.5 bottom-0.5 bg-white rounded-full transition-all duration-300;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  @apply bg-blue-600;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(24px);
+}
+
+/* settings actions */
+.settings-actions {
+  @apply flex gap-3 pt-6 border-t border-gray-200;
+}
+
+.settings-save-btn {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex-1;
+}
+
+.settings-delete-btn {
+  @apply bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors;
+}
+
+/* invite modal */
+.modal-overlay {
+  @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.invite-modal {
+  @apply bg-white rounded-2xl shadow-2xl max-w-lg w-full;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  @apply flex items-center justify-between p-6 border-b border-gray-200;
+}
+
+.modal-title {
+  @apply text-xl font-bold text-gray-900;
+}
+
+.modal-close {
+  @apply w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors;
+}
+
+.modal-close svg {
+  @apply w-5 h-5;
+}
+
+.modal-body {
+  @apply p-6 space-y-6;
+}
+
+.invite-option {
+  @apply space-y-3;
+}
+
+.invite-option-title {
+  @apply font-semibold text-gray-900;
+}
+
+.invite-link-box {
+  @apply flex gap-2;
+}
+
+.invite-link-input {
+  @apply flex-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-700;
+}
+
+.copy-link-btn {
+  @apply flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors;
+}
+
+.copy-link-btn svg {
+  @apply w-5 h-5 mr-2;
+}
+
+.modal-divider {
+  @apply text-center text-gray-500 text-sm font-medium relative;
+}
+
+.modal-divider:before,
+.modal-divider:after {
+  @apply content-[''] absolute top-1/2 w-[calc(50%-30px)] h-px bg-gray-300;
+}
+
+.modal-divider:before {
+  @apply left-0;
+}
+
+.modal-divider:after {
+  @apply right-0;
+}
+
+.invite-email-input {
+  @apply w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all;
+}
+
+.send-invite-btn {
+  @apply w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors;
+}
+
+/* icon backgrounds */
+.icon-bg-blue {
+  @apply bg-blue-500;
+}
+
+.icon-bg-green {
+  @apply bg-green-500;
+}
+
+.icon-bg-purple {
+  @apply bg-purple-500;
+}
+
+.icon-bg-yellow {
+  @apply bg-yellow-500;
+}
+
+/* responsive */
+@media (max-width: 768px) {
+  .hero-title {
+    @apply text-2xl;
+  }
+
+  .hero-stats {
+    @apply grid-cols-1;
+  }
+
+  .tabs-container {
+    @apply overflow-x-auto;
+  }
+
+  .tab-btn {
+    @apply flex-shrink-0;
+  }
+
+  .overview-grid {
+    @apply grid-cols-1;
+  }
+
+  .financial-grid {
+    @apply grid-cols-1;
+  }
+
+  .info-grid {
+    @apply grid-cols-1;
+  }
+
+  .members-grid {
+    @apply grid-cols-1;
+  }
+
+  .settings-actions {
+    @apply flex-col;
+  }
+}
+
+/* join requests section */
+.requests-section {
+  @apply space-y-6;
+}
+
+.requests-header {
+  @apply mb-6;
+}
+
+.requests-title {
+  @apply text-2xl font-bold text-gray-900 mb-2;
+}
+
+.requests-subtitle {
+  @apply text-gray-600;
+}
+
+.requests-list {
+  @apply space-y-4;
+}
+
+.request-card {
+  @apply bg-white rounded-xl p-6 border border-gray-200 flex items-start gap-4 hover:shadow-lg transition-all duration-300;
+}
+
+.request-avatar {
+  @apply w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl flex-shrink-0;
+}
+
+.request-info {
+  @apply flex-1;
+}
+
+.request-name {
+  @apply text-lg font-bold text-gray-900 mb-1;
+}
+
+.request-email {
+  @apply text-sm text-gray-600 mb-2;
+}
+
+.request-message {
+  @apply text-sm text-gray-700 italic bg-gray-50 px-3 py-2 rounded-lg mb-2;
+}
+
+.request-date {
+  @apply text-xs text-gray-500;
+}
+
+.request-actions {
+  @apply flex gap-3 flex-shrink-0;
+}
+
+.request-btn {
+  @apply flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all duration-200;
+}
+
+.request-btn svg {
+  @apply w-5 h-5;
+}
+
+.request-btn.approve {
+  @apply bg-green-50 text-green-700 hover:bg-green-600 hover:text-white border border-green-200;
+}
+
+.request-btn.reject {
+  @apply bg-red-50 text-red-700 hover:bg-red-600 hover:text-white border border-red-200;
+}
+
+.empty-state-requests {
+  @apply flex flex-col items-center justify-center py-16 text-center;
+}
+
+.empty-state-requests .empty-icon {
+  @apply w-20 h-20 text-gray-300 mb-4;
+}
+
+.empty-state-requests .empty-title {
+  @apply text-xl font-bold text-gray-700 mb-2;
+}
+
+.empty-state-requests .empty-description {
+  @apply text-gray-500;
+  }
+  

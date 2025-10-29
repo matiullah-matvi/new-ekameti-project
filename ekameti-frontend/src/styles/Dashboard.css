@@ -1,0 +1,448 @@
+/* Dashboard page styling - matches CreateKameti and KametiDetails design */
+
+/* main container */
+.dashboard-container {
+  @apply min-h-screen bg-gray-50;
+}
+
+/* hero section with gradient background */
+.dashboard-hero {
+  @apply relative bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 overflow-hidden;
+  padding: 5rem 0 6rem;
+}
+
+.hero-overlay {
+  @apply absolute inset-0 bg-black opacity-10;
+}
+
+.hero-blob-right {
+  @apply absolute -top-20 -right-20 w-96 h-96 bg-blue-500 rounded-full opacity-20 blur-3xl;
+}
+
+.hero-blob-left {
+  @apply absolute -bottom-20 -left-20 w-96 h-96 bg-indigo-500 rounded-full opacity-20 blur-3xl;
+}
+
+.hero-content {
+  @apply relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white;
+}
+
+.hero-inner {
+  @apply max-w-3xl mx-auto;
+}
+
+/* welcome badge */
+.hero-badge {
+  @apply inline-flex items-center gap-2 bg-white bg-opacity-20 backdrop-blur-sm px-4 py-2 rounded-full mb-6;
+}
+
+.hero-badge-icon {
+  @apply w-5 h-5;
+}
+
+.hero-badge span {
+  @apply text-sm font-medium;
+}
+
+/* hero text */
+.hero-title {
+  @apply text-4xl sm:text-5xl font-bold mb-4;
+}
+
+.hero-subtitle {
+  @apply text-lg sm:text-xl text-blue-100 mb-8 max-w-2xl mx-auto;
+}
+
+/* hero action buttons */
+.hero-actions {
+  @apply flex flex-wrap items-center justify-center gap-4;
+}
+
+.hero-btn-primary {
+  @apply inline-flex items-center gap-2 bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1;
+}
+
+.hero-btn-icon {
+  @apply w-5 h-5;
+}
+
+.hero-btn-secondary {
+  @apply bg-transparent border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-all duration-300;
+}
+
+/* main content area */
+.dashboard-main {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10 pb-12;
+}
+
+/* KPI statistics grid */
+.kpi-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8;
+}
+
+.kpi-card {
+  @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-6 transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+}
+
+.kpi-card-wrapper {
+  @apply flex items-start justify-between mb-4;
+}
+
+.kpi-card-label {
+  @apply text-sm font-medium text-gray-600 mb-2;
+}
+
+.kpi-card-value {
+  @apply text-3xl font-bold text-gray-900;
+}
+
+.kpi-card-trend {
+  @apply text-xs font-medium mt-2;
+}
+
+.kpi-trend-positive {
+  @apply text-green-600;
+}
+
+.kpi-trend-warning {
+  @apply text-yellow-600;
+}
+
+.kpi-trend-info {
+  @apply text-gray-500;
+}
+
+/* kpi icons */
+.kpi-card-icon {
+  @apply w-14 h-14 rounded-xl flex items-center justify-center;
+}
+
+.icon-svg {
+  @apply w-7 h-7;
+}
+
+.icon-svg-sm {
+  @apply w-5 h-5;
+}
+
+/* icon color variations */
+.icon-bg-blue {
+  @apply bg-blue-100;
+}
+
+.icon-text-blue {
+  @apply text-blue-600;
+}
+
+.icon-bg-green {
+  @apply bg-green-100;
+}
+
+.icon-text-green {
+  @apply text-green-600;
+}
+
+.icon-bg-yellow {
+  @apply bg-yellow-100;
+}
+
+.icon-text-yellow {
+  @apply text-yellow-600;
+}
+
+.icon-bg-purple {
+  @apply bg-purple-100;
+}
+
+.icon-text-purple {
+  @apply text-purple-600;
+}
+
+.icon-bg-red {
+  @apply bg-red-100;
+}
+
+.icon-text-red {
+  @apply text-red-600;
+}
+
+.icon-bg-indigo {
+  @apply bg-indigo-100;
+}
+
+.icon-text-indigo {
+  @apply text-indigo-600;
+}
+
+/* group hover effects */
+.group-hover-bg-green {
+  @apply group-hover:bg-green-200;
+}
+
+.group-hover-bg-purple {
+  @apply group-hover:bg-purple-200;
+}
+
+.group-hover-bg-indigo {
+  @apply group-hover:bg-indigo-200;
+}
+
+.group-hover-bg-red {
+  @apply group-hover:bg-red-200;
+}
+
+/* progress bars under kpi cards */
+.kpi-progress-bar {
+  @apply w-full h-2 bg-gray-100 rounded-full overflow-hidden;
+}
+
+.kpi-progress-fill {
+  @apply h-full rounded-full;
+  width: 75%;
+}
+
+.kpi-progress-blue {
+  @apply bg-blue-600;
+}
+
+.kpi-progress-green {
+  @apply bg-green-600;
+}
+
+.kpi-progress-yellow {
+  @apply bg-yellow-600;
+}
+
+.kpi-progress-purple {
+  @apply bg-purple-600;
+}
+
+/* main content grid layout */
+.content-grid {
+  @apply grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8;
+}
+
+.content-col-1 {
+  @apply lg:col-span-4;
+}
+
+.content-col-2 {
+  @apply lg:col-span-8;
+}
+
+/* panel card styling */
+.panel-card {
+  @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-6;
+}
+
+.panel-title {
+  @apply text-xl font-bold text-gray-900 mb-6;
+}
+
+/* quick actions list */
+.actions-list {
+  @apply space-y-3;
+}
+
+.action-btn {
+  @apply w-full flex items-center justify-between p-4 rounded-xl border-2 border-gray-200 bg-white hover:border-blue-500 hover:bg-blue-50 transition-all duration-300 cursor-pointer;
+}
+
+.action-btn-content {
+  @apply flex items-center gap-3;
+}
+
+.action-btn-icon {
+  @apply w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300;
+}
+
+.action-btn-label-wrapper {
+  @apply flex flex-col;
+}
+
+.action-btn-label {
+  @apply text-sm font-semibold text-gray-700;
+}
+
+.action-arrow {
+  @apply w-5 h-5 text-gray-400 transition-transform duration-300;
+}
+
+.action-btn:hover .action-arrow {
+  @apply text-blue-600 translate-x-1;
+}
+
+/* notification badge */
+.notification-badge {
+  @apply absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center;
+}
+
+.notification-count-text {
+  @apply text-xs text-gray-500;
+}
+
+/* kametis header with search */
+.kametis-header {
+  @apply mb-6;
+}
+
+.kametis-header-inner {
+  @apply flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4;
+}
+
+.kametis-search-wrapper {
+  @apply w-full sm:w-auto;
+}
+
+.kametis-search {
+  @apply relative;
+}
+
+.kametis-search-input {
+  @apply w-full sm:w-64 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 transition-colors;
+}
+
+.kametis-search-icon {
+  @apply absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400;
+}
+
+/* kametis content area */
+.kametis-content {
+  @apply min-h-[400px];
+}
+
+/* loading state */
+.loading-container {
+  @apply flex flex-col items-center justify-center py-20;
+}
+
+.loading-spinner {
+  @apply w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4;
+}
+
+.loading-text {
+  @apply text-gray-600 font-medium;
+}
+
+/* kametis list */
+.kametis-list {
+  @apply space-y-4;
+}
+
+.kameti-card {
+  @apply border-2 border-gray-200 rounded-xl p-5 hover:border-blue-500 hover:bg-blue-50 transition-all duration-300 cursor-pointer;
+}
+
+.kameti-item {
+  @apply flex items-center gap-4;
+}
+
+.kameti-icon-wrapper {
+  @apply w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0;
+}
+
+.kameti-icon {
+  @apply w-6 h-6 text-blue-600;
+}
+
+.kameti-info {
+  @apply flex-1;
+}
+
+.kameti-name {
+  @apply text-lg font-semibold text-gray-900 mb-1;
+}
+
+.kameti-details {
+  @apply text-sm text-gray-600;
+}
+
+.kameti-actions {
+  @apply flex items-center gap-3;
+}
+
+/* status chips */
+.chip-active {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700;
+}
+
+.chip-pending {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700;
+}
+
+.chip-inactive {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700;
+}
+
+/* empty state */
+.empty-state {
+  @apply text-center py-20;
+}
+
+.empty-icon-wrapper {
+  @apply flex justify-center mb-6;
+}
+
+.empty-icon {
+  @apply w-20 h-20 text-gray-300;
+}
+
+.empty-title {
+  @apply text-2xl font-bold text-gray-900 mb-2;
+}
+
+.empty-description {
+  @apply text-gray-600 mb-6;
+}
+
+.empty-action-btn {
+  @apply inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors;
+}
+
+/* activity timeline */
+.activity-timeline {
+  @apply space-y-4;
+}
+
+.activity-item {
+  @apply flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors;
+}
+
+.activity-icon {
+  @apply w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0;
+}
+
+.activity-content {
+  @apply flex-1;
+}
+
+.activity-text-primary {
+  @apply text-sm font-semibold text-gray-900 mb-1;
+}
+
+.activity-text-secondary {
+  @apply text-xs text-gray-600;
+}
+
+.activity-time {
+  @apply text-xs text-gray-500;
+}
+
+/* responsive adjustments */
+@media (max-width: 640px) {
+  .hero-title {
+    @apply text-3xl;
+  }
+
+  .hero-subtitle {
+    @apply text-base;
+  }
+
+  .kpi-card-value {
+    @apply text-2xl;
+  }
+
+  .dashboard-main {
+    @apply -mt-4;
+  }
+}

@@ -1,0 +1,29 @@
+/* Page Layout */
+.verify-page {
+  @apply min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6;
+}
+
+/* Heading */
+.verify-page h1 {
+  @apply text-2xl font-bold text-blue-400 mb-4;
+}
+
+/* Form Styling */
+.verify-page form {
+  @apply bg-gray-800 p-6 rounded-lg shadow-md w-full max-w-md flex flex-col gap-4 border border-gray-700;
+}
+
+/* Input */
+.verify-page input {
+  @apply w-full p-2.5 rounded bg-gray-700 text-white placeholder-gray-400 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+/* Button */
+.verify-page button {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg shadow-md transition duration-200;
+}
+
+/* Error Message */
+.error {
+  @apply text-red-500 text-sm mt-1 text-center;
+}

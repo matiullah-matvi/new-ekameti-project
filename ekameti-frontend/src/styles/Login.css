@@ -1,0 +1,56 @@
+.login-container {
+    @apply min-h-screen bg-gray-900 flex items-center justify-center text-white;
+  }
+  
+  .login-box {
+    @apply bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-md text-center;
+  }
+  
+  .login-box h2 {
+    @apply text-2xl font-bold mb-4;
+  }
+  
+  .login-box input {
+    @apply w-full p-2 my-2 rounded bg-gray-700 text-white;
+  }
+  
+  /* Adjust password input padding to make room for the icon */
+  .password-wrapper input {
+    @apply pr-10;
+  }
+  
+  .password-wrapper {
+    @apply relative;
+  }
+  
+  /* Eye icon styling inside the input */
+  .eye-icon {
+    @apply absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-300 cursor-pointer;
+    font-size: 1.25rem; /* optional if needed */
+  }
+  
+  .login-box button {
+    @apply w-full bg-blue-600 text-white py-2 rounded mt-4 hover:bg-blue-700;
+  }
+  
+  .brand {
+    @apply text-blue-400;
+  }
+  
+  .link {
+    @apply mt-4 text-sm text-gray-400;
+  }
+  
+  /* Optional: Message styles */
+  .popup {
+    @apply mt-4 text-sm font-medium;
+  }
+  
+  .popup.success {
+    @apply text-green-400;
+  }
+  
+  .popup.error {
+    @apply text-red-400;
+  }
+  
