@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import NavBar from '../components/NavBar';
 import { useNavigate } from 'react-router-dom';
+import { getApiUrl } from '../config/api';
 
 const Notifications = () => {
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ const Notifications = () => {
       console.log('🔔 Fetching notifications for:', user.email);
       
       // Fetch payment notifications from our new API
-      const response = await axios.get(`http://localhost:5000/api/users/notifications/${user.email}`);
+      const response = await axios.get(getApiUrl(`users/notifications/${user.email}`));
       
       if (response.data.success) {
         setNotifications(response.data.notifications);
@@ -48,7 +49,7 @@ const Notifications = () => {
     try {
       if (!user?.email) return;
 
-      await axios.put(`http://localhost:5000/api/users/notifications/${user.email}/${notificationId}/read`);
+      await axios.put(getApiUrl(`users/notifications/${user.email}/${notificationId}/read`));
       
       // Update local state
       setNotifications(prev => 
@@ -81,13 +82,13 @@ const Notifications = () => {
       // If kametiMongoId exists, use it directly
       if (notification.data.kametiMongoId) {
         console.log('🔍 Using kametiMongoId:', notification.data.kametiMongoId);
-        const kametiResponse = await axios.get(`http://localhost:5000/api/kameti/${notification.data.kametiMongoId}`);
+        const kametiResponse = await axios.get(`kameti/${notification.data.kametiMongoId}`);
         kameti = kametiResponse.data;
       } 
       // Otherwise, find by kametiId (for older notifications)
       else if (notification.data.kametiId) {
         console.log('🔍 Fetching all kametis to find by kametiId:', notification.data.kametiId);
-        const allKametisResponse = await axios.get('http://localhost:5000/api/kameti');
+        const allKametisResponse = await axios.get(getApiUrl('kameti'));
         kameti = allKametisResponse.data.find(k => k.kametiId === notification.data.kametiId);
         
         if (!kameti) {
@@ -125,7 +126,7 @@ const Notifications = () => {
       
       // Call approve endpoint
       const response = await axios.post(
-        `http://localhost:5000/api/kameti/approve-request/${kametiId}/${requestId}`,
+        getApiUrl(`kameti/approve-request/${kametiId}/${requestId}`),
         { adminId: user._id }
       );
 
@@ -160,13 +161,13 @@ const Notifications = () => {
       // If kametiMongoId exists, use it directly
       if (notification.data.kametiMongoId) {
         console.log('🔍 Using kametiMongoId:', notification.data.kametiMongoId);
-        const kametiResponse = await axios.get(`http://localhost:5000/api/kameti/${notification.data.kametiMongoId}`);
+        const kametiResponse = await axios.get(`kameti/${notification.data.kametiMongoId}`);
         kameti = kametiResponse.data;
       } 
       // Otherwise, find by kametiId (for older notifications)
       else if (notification.data.kametiId) {
         console.log('🔍 Fetching all kametis to find by kametiId:', notification.data.kametiId);
-        const allKametisResponse = await axios.get('http://localhost:5000/api/kameti');
+        const allKametisResponse = await axios.get(getApiUrl('kameti'));
         kameti = allKametisResponse.data.find(k => k.kametiId === notification.data.kametiId);
         
         if (!kameti) {
@@ -204,7 +205,7 @@ const Notifications = () => {
       
       // Call reject endpoint
       const response = await axios.post(
-        `http://localhost:5000/api/kameti/reject-request/${kametiId}/${requestId}`,
+        getApiUrl(`kameti/reject-request/${kametiId}/${requestId}`),
         { adminId: user._id }
       );
 

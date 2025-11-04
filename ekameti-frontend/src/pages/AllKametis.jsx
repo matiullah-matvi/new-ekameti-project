@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import NavBar from '../components/NavBar';
 import { useNavigate } from 'react-router-dom';
+import { getApiUrl } from '../config/api';
 import '../styles/AllKametis.css';
 
 const AllKametis = () => {
@@ -39,7 +40,7 @@ const AllKametis = () => {
       console.log('🔍 Fetching kametis from backend...');
       
       // fetch all kametis from backend
-      const response = await axios.get('http://localhost:5000/api/kameti');
+      const response = await axios.get(getApiUrl('kameti'));
       console.log('✅ Fetched kametis:', response.data);
       console.log('📊 Total kametis found:', response.data.length);
       
@@ -157,7 +158,7 @@ const AllKametis = () => {
     // send join request
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/kameti/request-join/${kameti._id}`,
+        getApiUrl(`kameti/request-join/${kameti._id}`),
         {
           userId: user._id,
           message: '' // optional message can be added later with a modal

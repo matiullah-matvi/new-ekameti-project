@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 
 const CompleteProfile = () => {
   const navigate = useNavigate();
@@ -106,7 +107,7 @@ const CompleteProfile = () => {
       }
 
       const response = await axios.put(
-        `http://localhost:5000/api/users/complete-profile`,
+        getApiUrl('users/complete-profile'),
         updateData,
         {
           headers: {

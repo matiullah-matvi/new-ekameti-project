@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 import '../styles/JoinKameti.css';
 
 const JoinKameti = () => {
@@ -15,7 +16,7 @@ const JoinKameti = () => {
   useEffect(() => {
     const fetchKameti = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/kameti/${id}`);
+        const res = await axios.get(getApiUrl(`kameti/${id}`));
         setKameti(res.data);
       } catch (err) {
         console.error('❌ Error:', err);
@@ -41,7 +42,7 @@ const JoinKameti = () => {
     }
 
     try {
-      const res = await axios.post(`http://localhost:5000/api/kameti/join/${id}`, {
+      const res = await axios.post(getApiUrl(`kameti/join/${id}`), {
         userId: user._id,
       });
       console.log('✅ Join response:', res.data);
@@ -62,7 +63,7 @@ const JoinKameti = () => {
     }
 
     try {
-      await axios.post(`http://localhost:5000/api/kameti/ignore/${id}`, {
+      await axios.post(getApiUrl(`kameti/ignore/${id}`), {
         userId: user._id,
       });
       console.log('✅ Ignore sent to admin');

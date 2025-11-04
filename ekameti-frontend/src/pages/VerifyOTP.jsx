@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 import '../styles/VerifyOTP.css'; // Make sure filename & path match
 
 const VerifyOTP = () => {
@@ -22,7 +23,7 @@ const VerifyOTP = () => {
       const registrationData = JSON.parse(localStorage.getItem('registrationData') || '{}');
       
       // Verify OTP and create user account
-      const response = await axios.post('http://localhost:5000/api/users/verify-otp', {
+      const response = await axios.post(getApiUrl('users/verify-otp'), {
         fullName: registrationData.fullName,
         email: location.state?.email || registrationData.email,
         password: registrationData.password,

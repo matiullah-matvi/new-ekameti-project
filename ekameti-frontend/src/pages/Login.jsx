@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import React, { useState } from 'react';
 import axios from 'axios';
 import TwoFactorVerifyModal from '../components/TwoFactorVerifyModal';
+import { getApiUrl, getFrontendUrl } from '../config/api';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -29,7 +30,7 @@ const Login = () => {
     try {
       // Try backend login first
       try {
-        const res = await axios.post('http://localhost:5000/api/users/login', formData);
+        const res = await axios.post(getApiUrl('users/login'), formData);
         
         // Check if 2FA is required
         if (res.data.requiresTwoFactor) {
@@ -224,7 +225,7 @@ const Login = () => {
             <div className="mt-6">
               <button 
                 type="button"
-                onClick={() => window.location.href = 'http://localhost:5000/api/auth/google'}
+                onClick={() => window.location.href = getApiUrl('auth/google')}
                 className="btn-secondary w-full flex justify-center items-center hover:bg-gray-100 transition-colors"
               >
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">

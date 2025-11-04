@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '../components/NavBar';
+import { getApiUrl } from '../config/api';
 import '../styles/Dashboard.css';
 
 const Dashboard = () => {
@@ -32,13 +33,13 @@ const Dashboard = () => {
         setUser(parsedUser);
         
         // fetch all kametis
-        const response = await axios.get('http://localhost:5000/api/kameti');
+        const response = await axios.get(getApiUrl('kameti'));
         const allKametis = response.data || [];
         
         // fetch user's joined kametis from the new endpoint
         let joinedKametis = [];
         try {
-          const joinedResponse = await axios.get(`http://localhost:5000/api/users/joined-kametis/${parsedUser.email}`);
+          const joinedResponse = await axios.get(getApiUrl(`users/joined-kametis/${parsedUser.email}`));
           joinedKametis = joinedResponse.data.joinedKametis || [];
           console.log('✅ Fetched joined Kametis:', joinedKametis);
         } catch (error) {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 
 const TwoFactorVerifyModal = ({ userId, email, onSuccess, onCancel }) => {
   const [verificationCode, setVerificationCode] = useState('');
@@ -14,7 +15,7 @@ const TwoFactorVerifyModal = ({ userId, email, onSuccess, onCancel }) => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/2fa/verify-login', {
+      const response = await axios.post(getApiUrl('2fa/verify-login'), {
         userId,
         token: useBackupCode ? null : verificationCode,
         backupCode: useBackupCode ? backupCode : null

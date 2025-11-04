@@ -273,7 +273,7 @@ router.post('/notify', async (req, res) => {
         metadata: {
           userAgent: req.headers['user-agent'],
           ipAddress: req.ip || req.connection.remoteAddress,
-          source: 'ipn_completed'
+          source: 'web' // Must be 'web', 'mobile', or 'api' per schema enum
         },
         auditTrail: [{
           action: 'payment_completed',
@@ -283,8 +283,15 @@ router.post('/notify', async (req, res) => {
         }]
       });
       
-      await payment.save();
-      console.log('✅ Payment record created in database:', payment.paymentId);
+      try {
+        await payment.save();
+        console.log('✅ Payment record created in database:', payment.paymentId);
+        console.log('✅ Payment saved with ID:', payment._id);
+      } catch (saveError) {
+        console.error('❌ ERROR saving Payment in IPN:', saveError.message);
+        console.error('❌ Payment validation errors:', saveError.errors);
+        throw saveError;
+      }
       
       // Create PaymentRecord
       const paymentRecord = new PaymentRecord({
@@ -307,8 +314,15 @@ router.post('/notify', async (req, res) => {
         }
       });
       
-      await paymentRecord.save();
-      console.log('✅ PaymentRecord created in database:', paymentRecord._id);
+      try {
+        await paymentRecord.save();
+        console.log('✅ PaymentRecord created in database:', paymentRecord._id);
+        console.log('✅ PaymentRecord saved with ID:', paymentRecord._id);
+      } catch (saveError) {
+        console.error('❌ ERROR saving PaymentRecord in IPN:', saveError.message);
+        console.error('❌ PaymentRecord validation errors:', saveError.errors);
+        throw saveError;
+      }
       
       // Update Kameti member payment status
       await Kameti.updateOne(
@@ -458,16 +472,33 @@ router.post('/notify', async (req, res) => {
 router.post('/manual-update', async (req, res) => {
   try {
     console.log('🔍 DEBUG: Manual payment update request received');
+    console.log('🔍 DEBUG: Request method:', req.method);
+    console.log('🔍 DEBUG: Request headers:', req.headers);
     console.log('🔍 DEBUG: Request body:', JSON.stringify(req.body, null, 2));
+    console.log('🔍 DEBUG: Request query:', req.query);
     
     const { email, amount, transactionId, kametiId } = req.body;
 
     console.log('🔧 DEBUG: Manual payment status update:', { email, amount, transactionId, kametiId });
 
     if (!email || !amount || !transactionId) {
+      console.error('❌ DEBUG: Missing required fields:', { email: !!email, amount: !!amount, transactionId: !!transactionId });
       return res.status(400).json({
         success: false,
         message: 'Missing required fields: email, amount, transactionId'
+      });
+    }
+    
+    // Check if payment already exists to prevent duplicates
+    const Payment = require('../models/Payment');
+    const existingPayment = await Payment.findOne({ transactionId });
+    if (existingPayment) {
+      console.log('⚠️ DEBUG: Payment already exists in database:', transactionId);
+      return res.json({
+        success: true,
+        message: 'Payment already recorded',
+        paymentId: existingPayment.paymentId,
+        duplicate: true
       });
     }
 
@@ -476,7 +507,7 @@ router.post('/manual-update', async (req, res) => {
     
     const User = require('../models/User');
     const Kameti = require('../models/Kameti');
-    const Payment = require('../models/Payment');
+    // Payment already declared above (line 479)
     const PaymentRecord = require('../models/PaymentRecord');
     
     // Find user and kameti
@@ -517,18 +548,27 @@ router.post('/manual-update', async (req, res) => {
           metadata: {
             userAgent: req.headers['user-agent'],
             ipAddress: req.ip || req.connection.remoteAddress,
-            source: 'manual_completed'
+            source: 'web' // Must be 'web', 'mobile', or 'api' per schema enum
           },
           auditTrail: [{
             action: 'payment_completed',
-            details: { amount: parseFloat(amount), paymentMethod: 'payfast', transactionId },
+            details: { amount: parseFloat(amount), paymentMethod: 'payfast', transactionId, source: 'manual_update' },
             performedBy: 'system',
             timestamp: new Date()
           }]
         });
         
-        await payment.save();
-        console.log('✅ Payment record created in database:', payment.paymentId);
+        try {
+          await payment.save();
+          console.log('✅ Payment record created in database:', payment.paymentId);
+          console.log('✅ Payment saved with ID:', payment._id);
+          console.log('✅ Payment saved with paymentId:', payment.paymentId);
+        } catch (saveError) {
+          console.error('❌ ERROR saving Payment:', saveError.message);
+          console.error('❌ Payment validation errors:', saveError.errors);
+          console.error('❌ Payment save error stack:', saveError.stack);
+          throw saveError; // Re-throw to be caught by outer catch
+        }
         
         // Create PaymentRecord
         const paymentRecord = new PaymentRecord({
@@ -537,7 +577,7 @@ router.post('/manual-update', async (req, res) => {
           userId: user._id,
           userEmail: user.email,
           round: 1,
-          totalRounds: kameti.totalRounds,
+          totalRounds: kameti.totalRounds || 1,
           amount: parseFloat(amount),
           paymentMethod: 'payfast',
           transactionId: transactionId,
@@ -551,22 +591,63 @@ router.post('/manual-update', async (req, res) => {
           }
         });
         
-        await paymentRecord.save();
-        console.log('✅ PaymentRecord created in database:', paymentRecord._id);
+        try {
+          await paymentRecord.save();
+          console.log('✅ PaymentRecord created in database:', paymentRecord._id);
+          console.log('✅ PaymentRecord saved with ID:', paymentRecord._id);
+          console.log('✅ PaymentRecord saved with paymentId:', paymentRecord.paymentId);
+        } catch (saveError) {
+          console.error('❌ ERROR saving PaymentRecord:', saveError.message);
+          console.error('❌ PaymentRecord validation errors:', saveError.errors);
+          console.error('❌ PaymentRecord save error stack:', saveError.stack);
+          throw saveError; // Re-throw to be caught by outer catch
+        }
         
         // Update Kameti member payment status
-        await Kameti.updateOne(
-          { kametiId: kametiId, "members.email": email },
-          { 
-            $set: { 
-              "members.$.paymentStatus": "paid",
-              "members.$.lastPaymentDate": new Date(),
-              "members.$.transactionId": transactionId
-            }
-          }
-        );
+        // First, check if user is a member
+        const memberExists = kameti.members && kameti.members.some(m => m.email === email);
+        console.log('🔍 DEBUG: Member exists in Kameti?', memberExists);
+        console.log('🔍 DEBUG: Kameti members:', kameti.members?.map(m => ({ email: m.email, userId: m.userId })));
         
-        console.log('✅ Kameti member status updated');
+        if (memberExists) {
+          const kametiUpdateResult = await Kameti.updateOne(
+            { kametiId: kametiId, "members.email": email },
+            { 
+              $set: { 
+                "members.$.paymentStatus": "paid",
+                "members.$.lastPaymentDate": new Date(),
+                "members.$.transactionId": transactionId
+              }
+            }
+          );
+          
+          console.log('🔍 DEBUG: Kameti member update result:', kametiUpdateResult);
+          if (kametiUpdateResult.matchedCount > 0) {
+            console.log('✅ Kameti member status updated');
+          } else {
+            console.warn('⚠️ Kameti member update matched 0 records');
+          }
+        } else {
+          console.log('⚠️ User is not a member of this Kameti yet. Payment saved but member status not updated.');
+          // Optionally, add user as a member if they're the creator
+          if (kameti.createdBy && kameti.createdBy.toString() === user._id.toString()) {
+            console.log('✅ User is the creator, adding as member...');
+            if (!kameti.members) {
+              kameti.members = [];
+            }
+            kameti.members.push({
+              userId: user._id,
+              email: user.email,
+              userName: user.fullName,
+              paymentStatus: 'paid',
+              lastPaymentDate: new Date(),
+              transactionId: transactionId,
+              joinedAt: new Date()
+            });
+            await kameti.save();
+            console.log('✅ Creator added as member with paid status');
+          }
+        }
         
         // Create payment notification with detailed information
         const paymentNotification = {
@@ -599,31 +680,102 @@ router.post('/manual-update', async (req, res) => {
           console.log('✅ Payment notification sent to admin:', admin.email);
         }
         
-        // Also add notification to user
+        // Also add notification to user and update paymentStatus
         if (!user.notifications) {
           user.notifications = [];
         }
         user.notifications.unshift(paymentNotification);
-        await user.save();
         
+        // Update user's paymentStatus to 'paid'
+        user.paymentStatus = 'paid';
+        user.lastPaymentDate = new Date();
+        user.lastTransactionId = transactionId;
+        user.lastPaymentAmount = parseFloat(amount);
+        user.lastPaymentMethod = 'payfast';
+        
+        await user.save();
+        console.log('✅ User paymentStatus updated to "paid"');
         console.log('✅ ALL PAYMENT RECORDS SAVED SUCCESSFULLY');
         
         return res.json({
           success: true,
           message: 'Payment records created and status updated successfully',
           paymentId: payment.paymentId,
+          paymentRecordId: paymentRecord._id,
           user: {
             email: user.email,
-            paymentStatus: 'completed'
+            paymentStatus: user.paymentStatus,
+            lastPaymentAmount: user.lastPaymentAmount,
+            lastPaymentDate: user.lastPaymentDate
           }
         });
         
       } catch (error) {
         console.error('❌ Error creating payment records:', error);
+        console.error('❌ Error stack:', error.stack);
+        console.error('❌ Error details:', JSON.stringify(error, null, 2));
         // Continue with fallback method
       }
     } else {
       console.log('⚠️ No Kameti found for Kameti ID:', kametiId);
+      // Even if Kameti not found, still create payment record
+      // Note: Payment model requires kametiMongoId, so we'll use a placeholder ObjectId
+      // Payment already declared above (line 479)
+      try {
+        const mongoose = require('mongoose');
+        const placeholderObjectId = new mongoose.Types.ObjectId();
+        const payment = new Payment({
+          userId: user._id,
+          userEmail: user.email,
+          userName: user.fullName,
+          kametiId: kametiId || 'UNKNOWN',
+          kametiName: 'Unknown Kameti',
+          kametiMongoId: placeholderObjectId, // Placeholder since Kameti not found
+          amount: parseFloat(amount),
+          paymentMethod: 'payfast',
+          transactionId: transactionId,
+          status: 'completed',
+          paymentCompletedAt: new Date(),
+          fees: {
+            gatewayFee: 0,
+            platformFee: 0,
+            netAmount: parseFloat(amount)
+          },
+          metadata: {
+            userAgent: req.headers['user-agent'],
+            ipAddress: req.ip || req.connection.remoteAddress,
+            source: 'web' // Must be 'web', 'mobile', or 'api' per schema enum
+          },
+          auditTrail: [{
+            action: 'payment_completed',
+            details: { amount: parseFloat(amount), paymentMethod: 'payfast', transactionId, note: 'Kameti not found' },
+            performedBy: 'system',
+            timestamp: new Date()
+          }]
+        });
+        
+        try {
+          await payment.save();
+          console.log('✅ Payment record created (without Kameti):', payment.paymentId);
+          console.log('✅ Payment saved with ID:', payment._id);
+        } catch (saveError) {
+          console.error('❌ ERROR saving Payment (without Kameti):', saveError.message);
+          console.error('❌ Payment validation errors:', saveError.errors);
+          throw saveError;
+        }
+        
+        // Also update user paymentStatus
+        user.paymentStatus = 'paid';
+        user.lastPaymentDate = new Date();
+        user.lastTransactionId = transactionId;
+        user.lastPaymentAmount = parseFloat(amount);
+        user.lastPaymentMethod = 'payfast';
+        await user.save();
+        console.log('✅ User paymentStatus updated to "paid" (without Kameti)');
+      } catch (error) {
+        console.error('❌ Error creating payment record without Kameti:', error);
+        console.error('❌ Error details:', error.message);
+      }
     }
 
     // Fallback: Update user payment history (old method)
@@ -650,11 +802,14 @@ router.post('/manual-update', async (req, res) => {
     const updatedUser = await User.findOneAndUpdate(
       { email },
       { 
-        // Don't update global paymentStatus - only update specific Kameti member
-        lastPaymentDate: new Date(),
-        lastTransactionId: transactionId,
-        lastPaymentAmount: amount,
-        lastPaymentMethod: 'payfast',
+        // Update global paymentStatus to 'paid' for successful payment
+        $set: {
+          paymentStatus: 'paid',
+          lastPaymentDate: new Date(),
+          lastTransactionId: transactionId,
+          lastPaymentAmount: parseFloat(amount),
+          lastPaymentMethod: 'payfast'
+        },
         $push: { notifications: paymentNotification }
       },
       { new: true }
@@ -665,8 +820,10 @@ router.post('/manual-update', async (req, res) => {
       console.log('👤 DEBUG: User payment history updated in DB:', updatedUser.email);
       console.log('🔍 DEBUG: Updated user data:', {
         email: updatedUser.email,
+        paymentStatus: updatedUser.paymentStatus,
         lastTransactionId: updatedUser.lastTransactionId,
-        lastPaymentAmount: updatedUser.lastPaymentAmount
+        lastPaymentAmount: updatedUser.lastPaymentAmount,
+        lastPaymentDate: updatedUser.lastPaymentDate
       });
     } else {
       console.log('⚠️ DEBUG: User not found in DB:', email);
@@ -704,17 +861,23 @@ router.post('/manual-update', async (req, res) => {
       console.log('⚠️ DEBUG: No Kameti ID provided for manual update');
     }
 
+    // Final response - always return success if we got this far
+    console.log('✅ DEBUG: Manual payment update completed successfully');
     res.json({
       success: true,
       message: 'Payment status updated manually',
       user: updatedUser ? {
         email: updatedUser.email,
-        paymentStatus: updatedUser.paymentStatus
-      } : null
+        lastTransactionId: updatedUser.lastTransactionId,
+        lastPaymentAmount: updatedUser.lastPaymentAmount
+      } : null,
+      kametiId: kametiId || null,
+      transactionId: transactionId
     });
 
   } catch (error) {
     console.error('❌ Manual payment update error:', error.message);
+    console.error('❌ Full error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Failed to update payment status manually',

@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import NavBar from '../components/NavBar';
 import { useNavigate, useParams } from 'react-router-dom';
+import { getApiUrl, getFrontendUrl } from '../config/api';
 import '../styles/KametiDetails.css';
 
 const KametiDetails = () => {
@@ -58,7 +59,7 @@ const KametiDetails = () => {
   const fetchKametiDetails = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:5000/api/kameti/${id}`);
+      const response = await axios.get(getApiUrl(`kameti/${id}`));
       console.log('Kameti data:', response.data);
       setKameti(response.data);
     } catch (error) {
@@ -101,7 +102,7 @@ const KametiDetails = () => {
   const handleApproveRequest = async (requestId) => {
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/kameti/approve-request/${id}/${requestId}`,
+        getApiUrl(`kameti/approve-request/${id}/${requestId}`),
         { adminId: user._id }
       );
       
@@ -117,7 +118,7 @@ const KametiDetails = () => {
   const handleRejectRequest = async (requestId) => {
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/kameti/reject-request/${id}/${requestId}`,
+        getApiUrl(`kameti/reject-request/${id}/${requestId}`),
         { adminId: user._id }
       );
       
@@ -139,7 +140,7 @@ const KametiDetails = () => {
 
     try {
       const response = await axios.post(
-        `http://localhost:5000/api/kameti/request-join/${id}`,
+        getApiUrl(`kameti/request-join/${id}`),
         {
           userId: user._id,
           message: ''
@@ -174,15 +175,15 @@ const KametiDetails = () => {
       console.log('🔍 DEBUG: Kameti ID type:', typeof kameti.kametiId);
       console.log('🔍 DEBUG: Kameti ID length:', kameti.kametiId?.length);
       
-      const response = await axios.post('http://localhost:5000/api/payfast/initiate', {
+      const response = await axios.post(getApiUrl('payfast/initiate'), {
         amount: kameti.amount,
         item_name: `Kameti Payment - ${kameti.name}`,
         item_description: `Contribution for Kameti "${kameti.name}" by ${user.fullName}`,
         user_email: user.email,
         user_name: user.fullName,
         kameti_id: kameti.kametiId,
-        return_url: `http://localhost:5173/payment-success`,
-        cancel_url: `http://localhost:5173/payment-cancel`
+        return_url: getFrontendUrl('payment-success'),
+        cancel_url: getFrontendUrl('payment-cancel')
       });
 
       if (response.data.success) {
@@ -191,7 +192,7 @@ const KametiDetails = () => {
         console.log('✅ DEBUG: PayFast parameters:', response.data.parameters);
         
         // Log the return URL that PayFast will use
-        const returnUrl = `http://localhost:5173/payment-success`;
+        const returnUrl = getFrontendUrl('payment-success');
         console.log('✅ DEBUG: PayFast will redirect to:', returnUrl);
         console.log('✅ DEBUG: PayFast should pass these parameters:', {
           amount: kameti.amount,
@@ -230,7 +231,7 @@ const KametiDetails = () => {
         console.log('✅ Demo payment status updated in localStorage');
         
         // Redirect to success page
-        const returnUrl = `http://localhost:5173/payment-success?amount=${amount}&transaction_id=${transactionId}&kameti_id=${kameti.kametiId}`;
+        const returnUrl = `${getFrontendUrl('payment-success')}?amount=${amount}&transaction_id=${transactionId}&kameti_id=${kameti.kametiId}`;
         console.log('🔄 DEBUG: Demo payment redirecting to:', returnUrl);
         console.log('🔄 DEBUG: Demo payment parameters:', {
           amount,

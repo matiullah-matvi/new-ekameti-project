@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
@@ -21,7 +22,7 @@ const Notifications = () => {
 
       console.log('🔔 Fetching notifications for:', user.email);
       
-      const response = await axios.get(`http://localhost:5000/api/users/notifications/${user.email}`);
+      const response = await axios.get(getApiUrl(`users/notifications/${user.email}`));
       
       if (response.data.success) {
         setNotifications(response.data.notifications);
@@ -40,7 +41,7 @@ const Notifications = () => {
       const user = JSON.parse(localStorage.getItem('ekametiUser') || 'null');
       if (!user?.email) return;
 
-      await axios.put(`http://localhost:5000/api/users/notifications/${user.email}/${notificationId}/read`);
+      await axios.put(getApiUrl(`users/notifications/${user.email}/${notificationId}/read`));
       
       // Update local state
       setNotifications(prev => 

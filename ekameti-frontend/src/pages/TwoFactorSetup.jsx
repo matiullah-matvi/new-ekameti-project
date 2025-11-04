@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 
 const TwoFactorSetup = () => {
   const navigate = useNavigate();
@@ -21,7 +22,7 @@ const TwoFactorSetup = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        'http://localhost:5000/api/2fa/setup',
+        getApiUrl('2fa/setup'),
         {},
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -54,7 +55,7 @@ const TwoFactorSetup = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        'http://localhost:5000/api/2fa/verify-enable',
+        getApiUrl('2fa/verify-enable'),
         { token: verificationCode },
         {
           headers: { Authorization: `Bearer ${token}` }

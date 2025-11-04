@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import NavBar from '../components/NavBar';
+import { getApiUrl } from '../config/api';
 import '../styles/Profile.css';
 
 const Profile = () => {
@@ -83,7 +84,7 @@ const Profile = () => {
   const fetch2FAStatus = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/2fa/status', {
+      const response = await axios.get(getApiUrl('2fa/status'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTwoFactorStatus({
@@ -109,7 +110,7 @@ const Profile = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.post(
-        'http://localhost:5000/api/2fa/disable',
+        getApiUrl('2fa/disable'),
         { password: disablePassword },
         { headers: { Authorization: `Bearer ${token}` } }
       );

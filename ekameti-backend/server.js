@@ -10,6 +10,12 @@ require('dotenv').config();
 //  Initialize Express App
 const app = express();
 
+// Early health check before any middleware
+app.get('/health', (req, res) => {
+  console.log('Health check endpoint hit');
+  res.status(200).json({ status: 'ok', early: true, time: new Date().toISOString() });
+});
+
 //  Import Passport Config
 const passport = require('./config/passport');
 
@@ -26,10 +32,30 @@ const authRoutes = require('./routes/authRoutes');
 const twoFactorRoutes = require('./routes/twoFactorRoutes');
 
 //  Middleware
-app.use(cors({
-  origin: 'http://localhost:5173',
-  credentials: true
-}));
+// CORS configuration (development-friendly, env-driven)
+const allowedOriginEnv = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:5173';
+const isDev = (process.env.NODE_ENV || 'development') === 'development';
+const corsOptions = {
+  origin: (origin, callback) => {
+    // In dev, allow any origin (including file:// and null origins) for easier testing
+    if (isDev) return callback(null, true);
+    // In non-dev, only allow the configured origin
+    if (!origin || origin === allowedOriginEnv) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 204,
+};
+app.use(cors(corsOptions));
+// Explicitly handle preflight for all routes (Express 5 safe)
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static('uploads'));
@@ -67,6 +93,14 @@ app.use('/api/2fa', twoFactorRoutes); // Two-Factor Authentication routes
 
 
 
+// Root sanity check
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', root: true });
+});
+// Basic health check (useful for debugging CORS/preflight quickly)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', time: new Date().toISOString() });
+});
 // ❌ OLD REGISTER ROUTE - COMMENTED OUT (Now using /api/users/register with OTP)
 /*
 app.post('/api/register', upload.single('cnicImage'), async (req, res) => {

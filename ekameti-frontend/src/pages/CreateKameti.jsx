@@ -1,10 +1,11 @@
 // Create Kameti page - modern multi-step form
 // Styling in CreateKameti.css
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import NavBar from '../components/NavBar';
 import { useNavigate } from 'react-router-dom';
+import { getApiUrl } from '../config/api';
 import '../styles/CreateKameti.css';
 
 const CreateKameti = () => {
@@ -33,10 +34,45 @@ const CreateKameti = () => {
 
   const [message, setMessage] = useState({ type: '', text: '' });
   
-  // get user from localStorage
-  const user = JSON.parse(localStorage.getItem('ekametiUser'));
-  const userId = user?._id;
-  const username = user?.username;
+  // user state - refresh on mount
+  const [user, setUser] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [username, setUsername] = useState(null);
+
+  // Refresh user data on component mount
+  useEffect(() => {
+    const refreshUserData = () => {
+      try {
+        const storedUser = localStorage.getItem('ekametiUser');
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          setUserId(parsedUser?._id);
+          // Derive username from email if not present, or use fullName as fallback
+          const derivedUsername = parsedUser?.username || parsedUser?.email?.split('@')[0] || parsedUser?.fullName || 'user';
+          setUsername(derivedUsername);
+          console.log('✅ User data loaded in CreateKameti:', { 
+            userId: parsedUser?._id, 
+            username: derivedUsername,
+            email: parsedUser?.email,
+            fullName: parsedUser?.fullName 
+          });
+        } else {
+          console.warn('⚠️ No user found in localStorage');
+          setUser(null);
+          setUserId(null);
+          setUsername(null);
+        }
+      } catch (error) {
+        console.error('❌ Error parsing user data:', error);
+        setUser(null);
+        setUserId(null);
+        setUsername(null);
+      }
+    };
+    
+    refreshUserData();
+  }, []);
 
   // handle input changes
   const handleChange = (e) => {
@@ -96,8 +132,10 @@ const CreateKameti = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!userId || !username) {
+    // Check if user is logged in (only userId is required, username can be derived)
+    if (!userId || !user) {
       setMessage({ type: 'error', text: 'Please login to create a Kameti' });
+      console.error('❌ User not logged in:', { userId, user });
       return;
     }
 
@@ -127,7 +165,7 @@ const CreateKameti = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post('http://localhost:5000/api/kameti/create', kametiData, {
+      const res = await axios.post(getApiUrl('kameti/create'), kametiData, {
         headers: {
           Authorization: `Bearer ${token}`
         }

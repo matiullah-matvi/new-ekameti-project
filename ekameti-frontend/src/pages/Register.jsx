@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl, getFrontendUrl } from '../config/api';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -79,7 +80,7 @@ const Register = () => {
     const fd = new FormData();
     fd.append('image', file);
 
-    const res = await axios.post('http://localhost:5000/api/ocr/cnic', fd, {
+    const res = await axios.post(getApiUrl('ocr/cnic'), fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 60000,
     });
@@ -348,7 +349,7 @@ const Register = () => {
 
     try {
       // Send OTP request to new endpoint
-      const response = await axios.post('http://localhost:5000/api/users/register', {
+      const response = await axios.post(getApiUrl('users/register'), {
         fullName: formData.fullName,
         email: formData.email,
         password: formData.password,
@@ -385,7 +386,7 @@ const Register = () => {
       const registrationData = JSON.parse(localStorage.getItem('registrationData') || '{}');
       
       // Verify OTP and create user account
-      const response = await axios.post('http://localhost:5000/api/users/verify-otp', {
+      const response = await axios.post(getApiUrl('users/verify-otp'), {
         fullName: registrationData.fullName,
         email: registrationData.email,
         password: registrationData.password,
@@ -488,7 +489,7 @@ const Register = () => {
           <div className="p-6 border-b border-gray-200">
             <button
               type="button"
-              onClick={() => window.location.href = 'http://localhost:5000/api/auth/google'}
+              onClick={() => window.location.href = getApiUrl('auth/google')}
               className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">

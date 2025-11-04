@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import NavBar from '../components/NavBar';
+import { getApiUrl } from '../config/api';
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
@@ -81,7 +82,7 @@ const PaymentSuccess = () => {
           kametiId: null
         });
         
-            processPaymentSuccess(fallbackAmount, fallbackTransactionId, currentUser.email);
+            processPaymentSuccess(fallbackAmount, fallbackTransactionId, currentUser.email, null);
             setProcessed(true); // Mark as processed
           } else {
             console.log('❌ DEBUG: No user found for fallback payment');
@@ -107,29 +108,35 @@ const PaymentSuccess = () => {
           kametiId: kametiId
         });
         
-            processPaymentSuccess(finalAmount, finalTransactionId, finalEmail);
+            processPaymentSuccess(finalAmount, finalTransactionId, finalEmail, kametiId);
             setProcessed(true); // Mark as processed
           } else {
             console.log('❌ DEBUG: Missing required parameters even after processing');
             setLoading(false);
           }
     }
-  }, [searchParams, processed]);
+  }, [searchParams, processed, user]);
 
-  const processPaymentSuccess = async (amount, transactionId, email) => {
+  const processPaymentSuccess = async (amount, transactionId, email, kametiIdFromParam = null) => {
     try {
       console.log('🔄 DEBUG: Starting payment success processing...');
-      console.log('🔄 DEBUG: Processing payment success:', { amount, transactionId, email });
+      console.log('🔄 DEBUG: Processing payment success:', { amount, transactionId, email, kametiIdFromParam });
       
       // Get user from localStorage directly to avoid state timing issues
       const currentUser = JSON.parse(localStorage.getItem('ekametiUser') || 'null');
       console.log('🔄 DEBUG: Current user from localStorage:', currentUser);
       
+      if (!currentUser || !currentUser.email) {
+        console.error('❌ DEBUG: No user found in localStorage');
+        setLoading(false);
+        return;
+      }
+      
       // Log all search params for debugging
       console.log('🔍 DEBUG: All URL search params:', Object.fromEntries(searchParams.entries()));
       
-      // Get kametiId from URL
-      const urlKametiId = searchParams.get('kameti_id');
+      // Get kametiId from URL (fallback to parameter)
+      const urlKametiId = searchParams.get('kameti_id') || kametiIdFromParam;
       console.log('🔍 DEBUG: Kameti ID from URL:', urlKametiId);
       
       // Update local storage to show payment as completed
@@ -152,45 +159,64 @@ const PaymentSuccess = () => {
         console.log('⚠️ DEBUG: No user found to update in localStorage');
       }
 
-          // Try backend API calls to update payment status
-          // NOTE: This only runs when user reaches PaymentSuccess page, meaning payment was completed
-          try {
-          // Use the new manual update endpoint
+      // Try backend API calls to update payment status
+      // NOTE: This only runs when user reaches PaymentSuccess page, meaning payment was completed
+      try {
+        // Use the new manual update endpoint
         const updateData = {
-          email: email || currentUser?.email,
-          amount: amount,
+          email: email || currentUser?.email || currentUser.email,
+          amount: parseFloat(amount),
           transactionId: transactionId
         };
         
-        // Get kametiId from URL params first, then from local variable
-        let kametiIdFromUrl = urlKametiId || kametiId || paymentData?.kametiId;
+        // Get kametiId from URL params first, then from parameter, then from paymentData
+        let kametiIdToUse = urlKametiId || kametiIdFromParam || paymentData?.kametiId;
         
         // Try to get kametiId from window name if not in URL (for demo payments)
-        if (!kametiIdFromUrl && window.name) {
+        if (!kametiIdToUse && window.name) {
           try {
             const windowData = JSON.parse(window.name);
-            kametiIdFromUrl = windowData.kametiId;
-            console.log('🔍 DEBUG: Got kametiId from window.name:', kametiIdFromUrl);
+            kametiIdToUse = windowData.kametiId;
+            console.log('🔍 DEBUG: Got kametiId from window.name:', kametiIdToUse);
           } catch (e) {
             console.log('⚠️ DEBUG: Could not parse window.name:', e);
           }
         }
         
-        console.log('🔍 DEBUG: KametiId being used:', kametiIdFromUrl);
-        console.log('🔍 DEBUG: All sources checked - urlKametiId:', urlKametiId, 'kametiId:', kametiId, 'paymentData:', paymentData?.kametiId);
+        console.log('🔍 DEBUG: KametiId being used:', kametiIdToUse);
+        console.log('🔍 DEBUG: All sources checked - urlKametiId:', urlKametiId, 'kametiIdFromParam:', kametiIdFromParam, 'paymentData:', paymentData?.kametiId);
         
         // Only add kametiId if it exists and is a valid Kameti ID format (starts with KAMETI-)
-        if (kametiIdFromUrl && kametiIdFromUrl.startsWith('KAMETI-')) {
-          updateData.kametiId = kametiIdFromUrl;
-          console.log('✅ DEBUG: Adding kametiId to update data:', kametiIdFromUrl);
+        if (kametiIdToUse && kametiIdToUse.startsWith('KAMETI-')) {
+          updateData.kametiId = kametiIdToUse;
+          console.log('✅ DEBUG: Adding kametiId to update data:', kametiIdToUse);
         } else {
-          console.log('⚠️ DEBUG: KametiId not found or invalid format, skipping:', kametiIdFromUrl);
+          console.log('⚠️ DEBUG: KametiId not found or invalid format, skipping:', kametiIdToUse);
         }
         
-        console.log('🔄 DEBUG: Email being used:', email || currentUser?.email);
-        console.log('🔄 DEBUG: Calling backend manual-update endpoint with:', updateData);
-        const updateResponse = await axios.post('http://localhost:5000/api/payfast/manual-update', updateData);
-        console.log('✅ DEBUG: Payment status updated via manual endpoint:', updateResponse.data);
+        console.log('🔄 DEBUG: Email being used:', updateData.email);
+        console.log('🔄 DEBUG: Calling backend manual-update endpoint with:', JSON.stringify(updateData, null, 2));
+        
+        try {
+          const updateResponse = await axios.post(getApiUrl('payfast/manual-update'), updateData, {
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            timeout: 10000 // 10 second timeout
+          });
+          console.log('✅ DEBUG: Payment status updated via manual endpoint:', updateResponse.data);
+          
+          if (updateResponse.data.success) {
+            console.log('✅ DEBUG: Payment successfully saved to database');
+          } else {
+            console.warn('⚠️ DEBUG: Payment update returned success:false:', updateResponse.data);
+          }
+        } catch (axiosError) {
+          console.error('❌ DEBUG: Axios error calling manual-update:', axiosError.message);
+          console.error('❌ DEBUG: Response status:', axiosError.response?.status);
+          console.error('❌ DEBUG: Response data:', axiosError.response?.data);
+          throw axiosError; // Re-throw to be caught by outer catch
+        }
 
         // Also try the notification endpoint
         try {
@@ -202,7 +228,7 @@ const PaymentSuccess = () => {
           };
           
           // Get kametiId for notification
-          const kametiIdForNotification = kametiIdFromUrl || kametiId;
+          const kametiIdForNotification = kametiIdToUse || urlKametiId || kametiIdFromParam;
           
           // Only add kametiId if it's valid
           if (kametiIdForNotification && kametiIdForNotification.startsWith('KAMETI-')) {
@@ -210,7 +236,7 @@ const PaymentSuccess = () => {
           }
           
           console.log('🔄 DEBUG: Calling notification endpoint with:', notificationData);
-          const notificationResponse = await axios.post('http://localhost:5000/api/notifications/payment-received', notificationData);
+          const notificationResponse = await axios.post(getApiUrl('notifications/payment-received'), notificationData);
           console.log('✅ DEBUG: Admin notification sent:', notificationResponse.data);
         } catch (notificationError) {
           console.log('⚠️ DEBUG: Notification failed:', notificationError.message);
@@ -218,9 +244,18 @@ const PaymentSuccess = () => {
         }
 
       } catch (backendError) {
-        console.log('⚠️ DEBUG: Backend processing failed:', backendError.message);
-        console.log('⚠️ DEBUG: Backend error details:', backendError);
+        console.error('❌ DEBUG: Backend processing failed:', backendError.message);
+        console.error('❌ DEBUG: Backend error details:', backendError);
+        console.error('❌ DEBUG: Error response:', backendError.response?.data);
+        console.error('❌ DEBUG: Error status:', backendError.response?.status);
         console.log('💡 DEBUG: Payment status updated in localStorage only');
+        
+        // Show user-friendly error message
+        if (backendError.response) {
+          console.error('❌ Backend returned error:', backendError.response.status, backendError.response.data);
+        } else if (backendError.request) {
+          console.error('❌ No response received from backend. Check if backend is running.');
+        }
         // For demo users, we only update localStorage
       }
 
@@ -231,7 +266,7 @@ const PaymentSuccess = () => {
         const user = JSON.parse(localStorage.getItem('ekametiUser') || 'null');
         if (user?.email) {
           console.log('🔔 Fetching updated notifications...');
-          const notificationResponse = await axios.get(`http://localhost:5000/api/users/notifications/${user.email}`);
+          const notificationResponse = await axios.get(getApiUrl(`users/notifications/${user.email}`));
           if (notificationResponse.data.success) {
             console.log('📧 Notifications updated:', notificationResponse.data.notifications.length);
             // Store notifications in localStorage for other components to use
