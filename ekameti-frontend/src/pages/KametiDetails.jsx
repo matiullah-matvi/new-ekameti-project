@@ -6,6 +6,7 @@ import axios from 'axios';
 import NavBar from '../components/NavBar';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getApiUrl, getFrontendUrl } from '../config/api';
+import RiskAnalysisCard from '../components/RiskAnalysisCard';
 import '../styles/KametiDetails.css';
 
 const KametiDetails = () => {
@@ -15,13 +16,33 @@ const KametiDetails = () => {
   // state management
   const [kameti, setKameti] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview'); // overview, members, payments, settings
+  const [activeTab, setActiveTab] = useState('overview'); // overview, members, payments, disputes, settings
+  const [error, setError] = useState(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [selectedDispute, setSelectedDispute] = useState(null);
+  const [showResolveModal, setShowResolveModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [resolveData, setResolveData] = useState({
+    resolutionType: '',
+    resolutionAmount: '',
+    resolutionNotes: ''
+  });
+  const [rejectionNotes, setRejectionNotes] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
 
   // get current user (refresh on every render)
   const [user, setUser] = useState(null);
+  
+  // disputes state management
+  const [disputes, setDisputes] = useState([]);
+  const [loadingDisputes, setLoadingDisputes] = useState(false);
+  
+  // risk analysis state
+  const [kametiRisk, setKametiRisk] = useState(null);
+  const [loadingRisk, setLoadingRisk] = useState(false);
   
   // refresh user data on component mount and when localStorage changes
   useEffect(() => {
@@ -49,23 +70,273 @@ const KametiDetails = () => {
     };
   }, []);
   
-  const isCreator = kameti?.createdBy === user?._id;
+  // Only compute these if kameti exists
+  const isCreator = kameti ? (
+    kameti.createdBy === user?._id || 
+    kameti.createdBy === user?.id || 
+    kameti.createdBy?.toString() === user?._id?.toString() || 
+    kameti.createdBy?.toString() === user?.id?.toString()
+  ) : false;
+  
+  // #region agent log
+  // Log isCreator check for admin buttons
+  if (kameti && user) {
+    fetch('http://127.0.0.1:7242/ingest/d347dbc0-ed63-420d-af24-1cc526296fcc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KametiDetails.jsx:54',message:'isCreator check for admin',data:{userId:user?._id||user?.id,createdBy:kameti?.createdBy,createdByType:typeof kameti?.createdBy,userIdType:typeof (user?._id||user?.id),isCreator,disputesCount:disputes.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run-admin',hypothesisId:'admin-visibility'})}).catch(()=>{});
+  }
+  // #endregion
 
   // fetch kameti details
   useEffect(() => {
     fetchKametiDetails();
   }, [id]);
 
+  // Fetch risk when kameti is loaded
+  useEffect(() => {
+    if (kameti && !loading && kameti.kametiId) {
+      console.log('🔄 Kameti loaded, fetching risk for:', kameti.kametiId);
+      // Small delay to ensure kameti is fully set
+      const timer = setTimeout(() => {
+        fetchKametiRisk();
+      }, 100);
+      return () => clearTimeout(timer);
+    } else if (kameti && !loading && kameti._id && !kameti.kametiId) {
+      console.log('🔄 Kameti loaded with _id only, fetching risk for:', kameti._id);
+      const timer = setTimeout(() => {
+        fetchKametiRisk();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [kameti, loading]);
+
+  // fetch disputes when disputes tab is active
+  useEffect(() => {
+    if (activeTab === 'disputes' && kameti && kameti.kametiId) {
+      fetchDisputes();
+    }
+  }, [activeTab, kameti]);
+
   const fetchKametiDetails = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await axios.get(getApiUrl(`kameti/${id}`));
       console.log('Kameti data:', response.data);
+      console.log('🔍 Kameti status:', response.data?.status);
+      console.log('🔍 Kameti ID:', response.data?.kametiId || response.data?._id);
+      console.log('🔍 Should hide payment section?', response.data?.status === 'Closed' || response.data?.status === 'Completed');
       setKameti(response.data);
+      
+      // Trigger risk fetch after kameti is set (with delay to ensure state is updated)
+      if (response.data && (response.data.kametiId || response.data._id)) {
+        setTimeout(() => {
+          console.log('🔄 Auto-triggering risk fetch after kameti load');
+          // Use the response data directly to avoid state timing issues
+          const kametiIdToUse = response.data.kametiId || response.data._id;
+          if (kametiIdToUse) {
+            const token = localStorage.getItem('token');
+            if (token) {
+              axios.get(getApiUrl(`risk/kameti-summary/${kametiIdToUse}`), {
+                headers: { Authorization: `Bearer ${token}` }
+              }).then(res => {
+                if (res.data && res.data.success && res.data.summary) {
+                  console.log('✅ Risk data loaded:', res.data.summary);
+                  setKametiRisk(res.data.summary);
+                }
+              }).catch(err => {
+                console.error('❌ Risk fetch error:', err);
+              });
+            }
+          }
+        }, 300);
+      }
     } catch (error) {
       console.error('Error fetching kameti:', error);
+      setError(error.response?.data?.message || 'Failed to load kameti details');
+      setKameti(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDisputes = async () => {
+    if (!kameti || !kameti.kametiId) {
+      console.warn('Cannot fetch disputes: kameti or kametiId is missing', { kameti });
+      setDisputes([]);
+      return;
+    }
+    
+    try {
+      setLoadingDisputes(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('No token found, cannot fetch disputes');
+        setDisputes([]);
+        return;
+      }
+      
+      console.log('🔍 Fetching disputes for kameti:', kameti.kametiId);
+      const response = await axios.get(getApiUrl(`disputes/kameti/${kameti.kametiId}`), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      console.log('✅ Disputes fetched:', response.data);
+      setDisputes(response.data.disputes || []);
+    } catch (error) {
+      console.error('❌ Error fetching disputes:', error);
+      console.error('Error details:', error.response?.data);
+      setDisputes([]); // Set empty array on error
+    } finally {
+      setLoadingDisputes(false);
+    }
+  };
+
+  const fetchKametiRisk = async () => {
+    if (!kameti) {
+      console.log('⚠️ Cannot fetch risk: kameti is null');
+      setKametiRisk(null);
+      setLoadingRisk(false);
+      return;
+    }
+    
+    // Prefer kametiId, fallback to _id
+    const kametiIdToUse = kameti.kametiId || kameti._id;
+    if (!kametiIdToUse) {
+      console.log('⚠️ Cannot fetch risk: kametiId or _id not found', { kameti });
+      setKametiRisk(null);
+      setLoadingRisk(false);
+      return;
+    }
+    
+    try {
+      setLoadingRisk(true);
+      setKametiRisk(null); // Clear previous data
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('⚠️ Cannot fetch risk: no token found');
+        setKametiRisk(null);
+        setLoadingRisk(false);
+        return;
+      }
+      
+      const apiUrl = getApiUrl(`risk/kameti-summary/${kametiIdToUse}`);
+      console.log('🔍 Fetching kameti risk:', {
+        kametiId: kametiIdToUse,
+        apiUrl: apiUrl,
+        hasToken: !!token
+      });
+      
+      const response = await axios.get(apiUrl, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      console.log('✅ Risk API response:', response.data);
+      
+      if (response.data && response.data.success && response.data.summary) {
+        console.log('✅ Setting risk data:', response.data.summary);
+        setKametiRisk(response.data.summary);
+      } else {
+        console.warn('⚠️ Risk response format unexpected:', response.data);
+        setKametiRisk(null);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching kameti risk:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        kametiId: kametiIdToUse,
+        url: getApiUrl(`risk/kameti-summary/${kametiIdToUse}`)
+      });
+      setKametiRisk(null);
+    } finally {
+      setLoadingRisk(false);
+    }
+  };
+
+  // Admin actions for disputes
+  const handleMarkUnderReview = async (caseId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(
+        getApiUrl(`disputes/admin/${caseId}/review`),
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert(response.data.message || 'Dispute marked as under review');
+      fetchDisputes(); // Refresh disputes list
+    } catch (error) {
+      console.error('Error marking dispute under review:', error);
+      alert(error.response?.data?.message || 'Failed to update dispute status');
+    }
+  };
+
+  const handleResolveDispute = async () => {
+    if (!resolveData.resolutionType || !resolveData.resolutionNotes) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(
+        getApiUrl(`disputes/admin/${selectedDispute.caseId}/resolve`),
+        {
+          resolutionType: resolveData.resolutionType,
+          resolutionAmount: parseFloat(resolveData.resolutionAmount) || 0,
+          resolutionNotes: resolveData.resolutionNotes
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert(response.data.message || 'Dispute resolved successfully');
+      setShowResolveModal(false);
+      setResolveData({ resolutionType: '', resolutionAmount: '', resolutionNotes: '' });
+      setSelectedDispute(null);
+      fetchDisputes(); // Refresh disputes list
+    } catch (error) {
+      console.error('Error resolving dispute:', error);
+      alert(error.response?.data?.message || 'Failed to resolve dispute');
+    }
+  };
+
+  const handleRejectDispute = async () => {
+    if (!rejectionNotes.trim()) {
+      alert('Please provide rejection notes');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.put(
+        getApiUrl(`disputes/admin/${selectedDispute.caseId}/reject`),
+        { rejectionNotes },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert(response.data.message || 'Dispute rejected');
+      setShowRejectModal(false);
+      setRejectionNotes('');
+      setSelectedDispute(null);
+      fetchDisputes(); // Refresh disputes list
+    } catch (error) {
+      console.error('Error rejecting dispute:', error);
+      alert(error.response?.data?.message || 'Failed to reject dispute');
+    }
+  };
+
+  const handleDeleteDispute = async (caseId) => {
+    if (!window.confirm('Are you sure you want to delete this dispute? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.delete(
+        getApiUrl(`disputes/admin/${caseId}`),
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert(response.data.message || 'Dispute deleted successfully');
+      fetchDisputes(); // Refresh disputes list
+    } catch (error) {
+      console.error('Error deleting dispute:', error);
+      alert(error.response?.data?.message || 'Failed to delete dispute');
     }
   };
 
@@ -80,6 +351,7 @@ const KametiDetails = () => {
 
   // share via whatsapp
   const shareViaWhatsApp = () => {
+    if (!kameti) return;
     const link = `${window.location.origin}/join-kameti/${id}`;
     const message = `🎯 *Join ${kameti.name}*\n\n💰 Contribution: Rs. ${kameti.amount.toLocaleString()}\n👥 Members: ${kameti.membersCount}\n📅 ${kameti.contributionFrequency}\n\n👉 ${link}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
@@ -151,14 +423,29 @@ const KametiDetails = () => {
       fetchKametiDetails(); // refresh to update button state
     } catch (error) {
       console.error('Error sending join request:', error);
-      alert(error.response?.data?.message || 'Failed to send join request');
+      const reason =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Failed to send join request';
+      alert(reason);
     }
   };
 
   // handle payment for current user using PayFast sandbox
   const handlePayment = async () => {
+    // ✅ Prevent payment if kameti is completed
+    if (kameti?.status === 'Closed' || kameti?.status === 'Completed') {
+      alert('❌ This kameti is closed. No further payments are required.');
+      return;
+    }
     if (!user) {
       alert('Please login to make payment');
+      return;
+    }
+
+    if (!kameti) {
+      alert('Kameti information is not available. Please refresh the page.');
       return;
     }
 
@@ -212,6 +499,11 @@ const KametiDetails = () => {
       
       // Fallback to demo payment if backend is not available
       if (error.code === 'ECONNREFUSED' || error.response?.status >= 500) {
+        if (!kameti) {
+          alert('Kameti information is not available. Please refresh the page.');
+          return;
+        }
+        
         console.log('⚠️ Backend not available, using demo payment...');
         
         const amount = parseFloat(kameti.amount);
@@ -245,11 +537,22 @@ const KametiDetails = () => {
     }
   };
 
-  // check if user is a member
-  const isMember = kameti?.members?.some(m => m.email === user?.email);
+  // check if user is a member (creator is also a member)
+  const isMember = !!(isCreator || kameti?.members?.some(m => m.email === user?.email));
   
   // get current user's member data
-  const currentMember = kameti?.members?.find(m => m.email === user?.email);
+  let currentMember = kameti?.members?.find(m => m.email === user?.email);
+  
+  // ✅ Enhanced: If creator is not in members array (old kametis), create virtual member entry
+  if (isCreator && !currentMember && user) {
+    currentMember = {
+      userId: user._id,
+      email: user.email,
+      name: user.fullName || user.username || 'Admin',
+      paymentStatus: 'unpaid', // Default to unpaid for creators not in members
+      joinedAt: kameti.createdAt || new Date()
+    };
+  }
   
   // check user's payment status for THIS specific Kameti (not global status)
   const userPaymentStatus = currentMember?.paymentStatus || 'unpaid';
@@ -260,8 +563,35 @@ const KametiDetails = () => {
     currentMemberPaymentStatus: currentMember?.paymentStatus,
     isMember: isMember,
     currentMember: currentMember,
-    kametiId: kameti?._id
+    kametiId: kameti?._id,
+    kametiStatus: kameti?.status,
+    shouldShowPayment: (isMember || isCreator) && currentMember && userPaymentStatus === 'unpaid' && kameti?.status !== 'Closed' && kameti?.status !== 'Completed'
   });
+
+  // #region agent log
+  if (kameti && user) {
+    fetch('http://127.0.0.1:7242/ingest/d347dbc0-ed63-420d-af24-1cc526296fcc',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        sessionId:'debug-session',
+        runId:'pre-fix',
+        hypothesisId:'H6',
+        location:'KametiDetails.jsx:payment-visibility',
+        message:'Payment button visibility inputs',
+        data:{
+          isCreator,
+          isMember,
+          hasCurrentMember: !!currentMember,
+          userPaymentStatus,
+          userEmail: user?.email,
+          kametiCreatedBy: kameti?.createdBy
+        },
+        timestamp:Date.now()
+      })
+    }).catch(()=>{});
+  }
+  // #endregion
   
   // check if user has pending request
   const hasPendingRequest = kameti?.joinRequests?.some(
@@ -269,7 +599,7 @@ const KametiDetails = () => {
   );
   
   // check if kameti is full
-  const isFull = kameti?.members?.length >= kameti?.membersCount;
+  const isFull = kameti ? (kameti.members?.length || 0) >= (kameti.membersCount || 0) : false;
 
   if (loading) {
     return (
@@ -283,7 +613,7 @@ const KametiDetails = () => {
     );
   }
 
-  if (!kameti) {
+  if (error || !kameti) {
     return (
       <div className="details-container">
         <NavBar />
@@ -294,7 +624,7 @@ const KametiDetails = () => {
             </svg>
           </div>
           <h2 className="error-title">Kameti Not Found</h2>
-          <p className="error-message">The kameti you're looking for doesn't exist or has been removed.</p>
+          <p className="error-message">{error || 'The kameti you\'re looking for doesn\'t exist or has been removed.'}</p>
           <button onClick={() => navigate('/dashboard')} className="error-btn">
             Go to Dashboard
           </button>
@@ -373,7 +703,7 @@ const KametiDetails = () => {
               </div>
               <div className="hero-stat-content">
                 <span className="hero-stat-label">Rounds</span>
-                <span className="hero-stat-value">{kameti.currentRound} / {kameti.totalRounds}</span>
+                <span className="hero-stat-value">{kameti.currentRound} / {kameti.membersCount}</span>
               </div>
             </div>
           </div>
@@ -463,9 +793,9 @@ const KametiDetails = () => {
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
-            Members ({kameti.members?.length || 0})
+            Members ({kameti?.members?.length || 0})
           </button>
-          {isCreator && kameti.joinRequests?.filter(r => r.status === 'pending').length > 0 && (
+          {isCreator && kameti?.joinRequests?.filter(r => r.status === 'pending').length > 0 && (
             <button 
               onClick={() => setActiveTab('requests')} 
               className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`}
@@ -473,7 +803,7 @@ const KametiDetails = () => {
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
-              Requests ({kameti.joinRequests?.filter(r => r.status === 'pending').length})
+              Requests ({kameti?.joinRequests?.filter(r => r.status === 'pending').length || 0})
             </button>
           )}
           <button 
@@ -485,6 +815,31 @@ const KametiDetails = () => {
             </svg>
             Payments
           </button>
+          <button 
+            onClick={() => setActiveTab('disputes')} 
+            className={`tab-btn ${activeTab === 'disputes' ? 'active' : ''}`}
+          >
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Disputes
+          </button>
+          {/* Payouts tab - visible to all members (view-only for non-admin) */}
+          {(isCreator || isMember) && (
+            <button 
+              onClick={() => {
+                const id = kameti?.kametiId || kameti?._id;
+                if (id) navigate(`/payouts/${id}`);
+              }} 
+              className="tab-btn"
+              style={{ cursor: 'pointer' }}
+            >
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Payouts
+            </button>
+          )}
           {isCreator && (
             <button 
               onClick={() => setActiveTab('settings')} 
@@ -499,8 +854,51 @@ const KametiDetails = () => {
           )}
         </div>
 
-        {/* Payment Section for Current User */}
-        {!isCreator && isMember && currentMember && userPaymentStatus === 'unpaid' && (
+
+        {/* Kameti Closed Message */}
+        {(kameti?.status === 'Closed' || kameti?.status === 'Completed') && (
+          <div style={{
+            backgroundColor: '#f0fdf4',
+            border: '2px solid #22c55e',
+            borderRadius: '12px',
+            padding: '24px',
+            marginBottom: '24px',
+            textAlign: 'center'
+          }}>
+            <div style={{ marginBottom: '16px' }}>
+              <h3 style={{ 
+                fontSize: '24px', 
+                fontWeight: '700', 
+                color: '#16a34a',
+                marginBottom: '8px'
+              }}>
+                🔒 Kameti Closed
+              </h3>
+              <p style={{ 
+                color: '#15803d',
+                fontSize: '16px',
+                marginBottom: '16px'
+              }}>
+                All rounds have been completed. All members have received their payouts. This kameti is now closed and no longer accepting new members or payments.
+              </p>
+              <div style={{
+                backgroundColor: 'white',
+                border: '1px solid #bbf7d0',
+                borderRadius: '8px',
+                padding: '16px',
+                marginTop: '16px'
+              }}>
+                <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px' }}>Total Rounds Completed</div>
+                <div style={{ fontSize: '20px', fontWeight: '700', color: '#16a34a' }}>
+                  {kameti.membersCount || kameti.currentRound || 'N/A'} of {kameti.membersCount || 'N/A'}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Payment Section for Current User (including admin/creator) - ONLY show if kameti is NOT closed */}
+        {kameti?.status !== 'Closed' && kameti?.status !== 'Completed' && (isMember || isCreator) && currentMember && userPaymentStatus === 'unpaid' && (
           <div className="payment-section" style={{
             backgroundColor: '#f8fafc',
             border: '2px solid #e2e8f0',
@@ -598,8 +996,8 @@ const KametiDetails = () => {
           </div>
         )}
 
-        {/* Payment Success Message for Paid Users */}
-        {!isCreator && isMember && currentMember && userPaymentStatus === 'paid' && (
+        {/* Payment Success Message for Paid Users (including admin/creator) - ONLY show if kameti is NOT closed */}
+        {kameti?.status !== 'Closed' && kameti?.status !== 'Completed' && (isMember || isCreator) && currentMember && userPaymentStatus === 'paid' && (
           <div className="payment-success-section" style={{
             backgroundColor: '#f0fdf4',
             border: '2px solid #22c55e',
@@ -715,6 +1113,101 @@ const KametiDetails = () => {
                 </div>
               </div>
 
+              {/* AI Risk Analysis */}
+              <div className="overview-card">
+                <h3 className="card-title">🤖 AI Risk Analysis</h3>
+                {loadingRisk ? (
+                  <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <div style={{ 
+                      display: 'inline-block', 
+                      width: '24px', 
+                      height: '24px', 
+                      border: '3px solid #e2e8f0', 
+                      borderTop: '3px solid #3b82f6', 
+                      borderRadius: '50%', 
+                      animation: 'spin 0.8s linear infinite',
+                      marginBottom: '12px'
+                    }}></div>
+                    <p style={{ color: '#64748b', fontSize: '14px' }}>Analyzing risk...</p>
+                  </div>
+                ) : kametiRisk ? (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                      <div>
+                        <div style={{ fontSize: '32px', fontWeight: 'bold', color: kametiRisk.riskLevel === 'low' ? '#10b981' : kametiRisk.riskLevel === 'medium' ? '#f59e0b' : kametiRisk.riskLevel === 'high' ? '#ef4444' : '#991b1b' }}>
+                          {kametiRisk.riskScore}
+                        </div>
+                        <div style={{ fontSize: '14px', color: '#64748b', textTransform: 'capitalize', marginTop: '4px' }}>
+                          {kametiRisk.riskLevel} Risk
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => navigate(`/risk-dashboard?kametiId=${kameti.kametiId || kameti._id}`)}
+                        style={{
+                          padding: '8px 16px',
+                          background: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseOver={(e) => e.target.style.background = '#2563eb'}
+                        onMouseOut={(e) => e.target.style.background = '#3b82f6'}
+                      >
+                        View Details →
+                      </button>
+                    </div>
+                    <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '12px', lineHeight: '1.5' }}>
+                      {kametiRisk.message}
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px', padding: '12px', background: '#f8fafc', borderRadius: '8px' }}>
+                      <div>
+                        <span style={{ color: '#64748b' }}>Overdue:</span> <strong style={{ color: '#ef4444' }}>{kametiRisk.signals.overduePayments}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: '#64748b' }}>Disputes:</span> <strong style={{ color: '#f59e0b' }}>{kametiRisk.signals.openDisputes}</strong>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '8px' }}>
+                      Risk analysis unavailable
+                    </p>
+                    {kameti && (kameti.kametiId || kameti._id) && (
+                      <p style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '12px' }}>
+                        {kameti.kametiId ? `Kameti ID: ${kameti.kametiId}` : `Kameti ID: ${kameti._id}`}
+                      </p>
+                    )}
+                    <button
+                      onClick={() => {
+                        console.log('🔄 Manual retry triggered');
+                        fetchKametiRisk();
+                      }}
+                      disabled={loadingRisk}
+                      style={{
+                        padding: '8px 16px',
+                        background: loadingRisk ? '#cbd5e1' : '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: loadingRisk ? 'not-allowed' : 'pointer',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseOver={(e) => !loadingRisk && (e.target.style.background = '#2563eb')}
+                      onMouseOut={(e) => !loadingRisk && (e.target.style.background = '#3b82f6')}
+                    >
+                      {loadingRisk ? 'Loading...' : '🔄 Retry'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* kameti info */}
               <div className="overview-card full-width">
                 <h3 className="card-title">Kameti Information</h3>
@@ -744,6 +1237,55 @@ const KametiDetails = () => {
                     <span className="info-value">Rs. {kameti.latePaymentFee || 0}</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Recent Activities */}
+              <div className="overview-card full-width">
+                <h3 className="card-title">Recent Activities</h3>
+                {kameti?.activities && Array.isArray(kameti.activities) && kameti.activities.length > 0 ? (
+                  <div className="activities-list" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                    {kameti.activities.slice(0, 10).map((activity, index) => (
+                      <div key={index} className="activity-item" style={{
+                        padding: '12px',
+                        borderBottom: '1px solid #e2e8f0',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}>
+                        <div style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '50%',
+                          backgroundColor: activity?.type === 'dispute_raised' ? '#fef3c7' : 
+                                          activity?.type === 'payment' ? '#d1fae5' : '#e0e7ff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          {activity?.type === 'dispute_raised' ? '⚠️' : 
+                           activity?.type === 'payment' ? '💰' : 
+                           activity?.type === 'member_joined' ? '👥' : '📝'}
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontWeight: '600', marginBottom: '4px', color: '#1e293b' }}>
+                            {activity?.title || 'Activity'}
+                          </p>
+                          <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
+                            {activity?.message || ''}
+                          </p>
+                          <p style={{ fontSize: '12px', color: '#94a3b8' }}>
+                            {activity?.createdAt ? new Date(activity.createdAt).toLocaleString() : ''}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ color: '#64748b', textAlign: 'center', padding: '20px' }}>
+                    No recent activities
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -853,6 +1395,361 @@ const KametiDetails = () => {
           )}
 
           {/* payments tab */}
+          {/* disputes tab */}
+          {activeTab === 'disputes' && kameti && (
+            <div className="disputes-section" style={{ padding: '24px' }}>
+              {/* Debug log for isCreator visibility */}
+              {(() => {
+                fetch('http://127.0.0.1:7242/ingest/d347dbc0-ed63-420d-af24-1cc526296fcc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KametiDetails.jsx:disputes-tab',message:'Disputes tab render',data:{isCreator,isMember,userId:user?._id||user?.id,createdBy:kameti?.createdBy},timestamp:Date.now(),sessionId:'debug-session',runId:'run-admin',hypothesisId:'admin-visibility'})}).catch(()=>{});
+                return null;
+              })()}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <h3 style={{ fontSize: '24px', fontWeight: '700', color: '#1e293b' }}>Disputes</h3>
+                  {disputes.length > 0 && (
+                    <span style={{
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      borderRadius: '12px',
+                      padding: '4px 12px',
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}>
+                      {disputes.length} {disputes.length === 1 ? 'Dispute' : 'Disputes'}
+                    </span>
+                  )}
+                  {isCreator && disputes.length > 0 && (
+                    <span style={{
+                      backgroundColor: '#fef3c7',
+                      color: '#92400e',
+                      borderRadius: '12px',
+                      padding: '4px 12px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                      Admin Review
+                    </span>
+                  )}
+                </div>
+                {user && (
+                  <button
+                    onClick={() => {
+                      navigate('/raise-dispute', { state: { kametiId: kameti.kametiId, kametiMongoId: kameti._id } });
+                    }}
+                    style={{
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '10px 20px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Raise Dispute
+                  </button>
+                )}
+              </div>
+
+              {loadingDisputes ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <p>Loading disputes...</p>
+                </div>
+              ) : disputes.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
+                  <svg style={{ width: '64px', height: '64px', margin: '0 auto 16px', color: '#94a3b8' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', marginBottom: '8px' }}>No Disputes</h3>
+                  <p style={{ color: '#64748b', marginBottom: '16px' }}>No disputes have been raised for this Kameti yet.</p>
+                  {user && kameti && (
+                    <button
+                      onClick={() => navigate('/raise-dispute', { state: { kametiId: kameti.kametiId, kametiMongoId: kameti._id } })}
+                      style={{
+                        backgroundColor: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '10px 20px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Raise First Dispute
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {disputes.map(dispute => (
+                    <div
+                      key={dispute._id}
+                      style={{
+                        backgroundColor: 'white',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        padding: '20px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                        e.currentTarget.style.borderColor = '#3b82f6';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.borderColor = '#e2e8f0';
+                      }}
+                      onClick={() => !isCreator && navigate(`/my-disputes`)}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                            <h4 style={{ fontSize: '18px', fontWeight: '700', color: '#1e293b' }}>
+                              Case: {dispute.caseId}
+                            </h4>
+                            <span style={{
+                              padding: '4px 12px',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              backgroundColor: dispute.status === 'open' ? '#dbeafe' : 
+                                            dispute.status === 'resolved' ? '#d1fae5' : 
+                                            dispute.status === 'rejected' ? '#fee2e2' : '#fef3c7',
+                              color: dispute.status === 'open' ? '#1e40af' : 
+                                     dispute.status === 'resolved' ? '#065f46' : 
+                                     dispute.status === 'rejected' ? '#991b1b' : '#92400e'
+                            }}>
+                              {dispute.status.replace('_', ' ').toUpperCase()}
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '4px' }}>
+                            {dispute.reasonLabel}
+                          </p>
+                          <p style={{ fontSize: '14px', color: '#1e293b' }}>
+                            By: {dispute.userName || dispute.userEmail}
+                          </p>
+                          {isCreator && (
+                            <p style={{ fontSize: '12px', color: '#3b82f6', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                              </svg>
+                              You received a notification about this dispute
+                            </p>
+                          )}
+                          {!isCreator && isMember && (
+                            <p style={{ fontSize: '12px', color: '#3b82f6', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="14" height="14">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                              </svg>
+                              You received a notification about this dispute
+                            </p>
+                          )}
+                        </div>
+                        <p style={{ fontSize: '12px', color: '#94a3b8' }}>
+                          {new Date(dispute.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <p style={{ fontSize: '14px', color: '#475569', marginTop: '12px', lineHeight: '1.5' }}>
+                        {dispute.explanation.length > 150 ? dispute.explanation.substring(0, 150) + '...' : dispute.explanation}
+                      </p>
+                      {dispute.proof && dispute.proof.length > 0 && (
+                        <p style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
+                          📎 {dispute.proof.length} proof file(s) attached
+                        </p>
+                      )}
+                      
+                      {/* Admin Actions - Only visible to creator */}
+                      {/* #region agent log */}
+                      {(() => {
+                        fetch('http://127.0.0.1:7242/ingest/d347dbc0-ed63-420d-af24-1cc526296fcc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'KametiDetails.jsx:1249',message:'Checking admin buttons visibility',data:{isCreator,disputeCaseId:dispute.caseId,disputeStatus:dispute.status},timestamp:Date.now(),sessionId:'debug-session',runId:'run-admin',hypothesisId:'admin-visibility'})}).catch(()=>{});
+                        return null;
+                      })()}
+                      {/* #endregion */}
+                      {isCreator && (
+                        <div style={{ 
+                          marginTop: '16px', 
+                          paddingTop: '16px', 
+                          borderTop: '2px solid #3b82f6',
+                          display: 'flex',
+                          gap: '8px',
+                          flexWrap: 'wrap',
+                          backgroundColor: '#f8fafc',
+                          padding: '12px',
+                          borderRadius: '8px'
+                        }}>
+                          <div style={{ width: '100%', marginBottom: '8px' }}>
+                            <p style={{ fontSize: '12px', fontWeight: '700', color: '#3b82f6', textTransform: 'uppercase' }}>
+                              Admin Actions
+                            </p>
+                          </div>
+                          {dispute.status === 'open' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkUnderReview(dispute.caseId);
+                              }}
+                              style={{
+                                backgroundColor: '#f59e0b',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: '8px 16px',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 2px 4px rgba(245, 158, 11, 0.3)',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = '#d97706';
+                                e.currentTarget.style.transform = 'translateY(-1px)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = '#f59e0b';
+                                e.currentTarget.style.transform = 'translateY(0)';
+                              }}
+                            >
+                              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Working on it
+                            </button>
+                          )}
+                          {(dispute.status === 'open' || dispute.status === 'under_review') && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedDispute(dispute);
+                                  setShowResolveModal(true);
+                                }}
+                                style={{
+                                  backgroundColor: '#10b981',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  padding: '8px 16px',
+                                  fontSize: '13px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  boxShadow: '0 2px 4px rgba(16, 185, 129, 0.3)',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#059669';
+                                  e.currentTarget.style.transform = 'translateY(-1px)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#10b981';
+                                  e.currentTarget.style.transform = 'translateY(0)';
+                                }}
+                              >
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Resolve
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedDispute(dispute);
+                                  setShowRejectModal(true);
+                                }}
+                                style={{
+                                  backgroundColor: '#ef4444',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  padding: '8px 16px',
+                                  fontSize: '13px',
+                                  fontWeight: '600',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#dc2626';
+                                  e.currentTarget.style.transform = 'translateY(-1px)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#ef4444';
+                                  e.currentTarget.style.transform = 'translateY(0)';
+                                }}
+                              >
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDispute(dispute.caseId);
+                            }}
+                            style={{
+                              backgroundColor: '#6b7280',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '8px 16px',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              boxShadow: '0 2px 4px rgba(107, 114, 128, 0.3)',
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#4b5563';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = '#6b7280';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                            }}
+                          >
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" width="16" height="16">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {activeTab === 'payments' && (
             <div className="payments-section">
               <div className="payments-header">
@@ -923,12 +1820,18 @@ const KametiDetails = () => {
                       <h4 className="setting-label">Status</h4>
                       <p className="setting-desc">Current kameti status</p>
                     </div>
-                    <select className="setting-select" defaultValue={kameti.status}>
+                    <select className="setting-select" defaultValue={kameti.status} disabled>
                       <option value="Pending">Pending</option>
                       <option value="Active">Active</option>
                       <option value="Completed">Completed</option>
+                      <option value="Closed">Closed</option>
                       <option value="Cancelled">Cancelled</option>
                     </select>
+                    {kameti.status === 'Closed' && (
+                      <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                        Status cannot be changed. Kameti is closed.
+                      </p>
+                    )}
                   </div>
 
                   <div className="setting-item">
@@ -954,15 +1857,215 @@ const KametiDetails = () => {
                   </div>
                 </div>
 
+
                 <div className="settings-actions">
-                  <button className="settings-save-btn">Save Changes</button>
-                  <button className="settings-delete-btn">Delete Kameti</button>
+                  {kameti.status !== 'Closed' && !kameti.deleteRequest && isCreator && (
+                    <>
+                      <button className="settings-save-btn">Save Changes</button>
+                      <button
+                        onClick={() => {
+                          setDeleteReason('');
+                          setShowDeleteModal(true);
+                        }}
+                        style={{
+                          background: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          padding: '12px 24px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          marginLeft: '12px'
+                        }}
+                      >
+                        🗑️ Delete Kameti
+                      </button>
+                    </>
+                  )}
+                  {kameti.status === 'Closed' && isCreator && (
+                    <button 
+                      className="settings-delete-btn"
+                      onClick={() => {
+                        setShowDeleteModal(true);
+                      }}
+                      style={{ 
+                        background: '#ef4444', 
+                        color: 'white',
+                        border: 'none',
+                        padding: '12px 24px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                    >
+                      🗑️ Delete Closed Kameti
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={() => {
+          setShowDeleteModal(false);
+          setDeleteReason('');
+        }}>
+          <div className="invite-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div style={{ padding: '24px' }}>
+              <h2 style={{ margin: '0 0 16px 0', fontSize: '24px', fontWeight: 700, color: '#1e293b' }}>
+                {kameti?.status === 'Closed' ? 'Delete Closed Kameti' : 'Request Kameti Deletion'}
+              </h2>
+              
+              {kameti?.status === 'Closed' ? (
+                <>
+                  <p style={{ margin: '0 0 20px 0', color: '#64748b', fontSize: '14px', lineHeight: '1.6' }}>
+                    Are you sure you want to permanently delete this closed kameti? This action cannot be undone.
+                  </p>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => {
+                        setShowDeleteModal(false);
+                        setDeleteReason('');
+                      }}
+                      style={{
+                        padding: '10px 20px',
+                        background: '#e2e8f0',
+                        color: '#475569',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontSize: '14px'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const token = localStorage.getItem('token');
+                          const storedUser = localStorage.getItem('ekametiUser');
+                          const user = storedUser ? JSON.parse(storedUser) : null;
+                          const userId = user?._id || user?.id;
+                          const response = await axios.delete(getApiUrl(`kameti/delete/${kameti._id}?userId=${userId}`), {
+                            headers: { Authorization: `Bearer ${token}` }
+                          });
+                          if (response.data.success) {
+                            alert('✅ Kameti deleted successfully');
+                            navigate('/my-kametis');
+                          }
+                        } catch (error) {
+                          alert(`❌ Failed to delete kameti: ${error.response?.data?.message || error.message}`);
+                        } finally {
+                          setShowDeleteModal(false);
+                          setDeleteReason('');
+                        }
+                      }}
+                      style={{
+                        padding: '10px 20px',
+                        background: '#ef4444',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontSize: '14px'
+                      }}
+                    >
+                      Delete Permanently
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p style={{ margin: '0 0 16px 0', color: '#64748b', fontSize: '14px', lineHeight: '1.6' }}>
+                    Requesting deletion will require approval from all members before the kameti can be deleted. This action cannot be undone once approved.
+                  </p>
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>
+                      Reason for deletion (optional):
+                    </label>
+                    <textarea
+                      value={deleteReason}
+                      onChange={(e) => setDeleteReason(e.target.value)}
+                      placeholder="Enter reason for deletion request..."
+                      style={{
+                        width: '100%',
+                        minHeight: '100px',
+                        padding: '12px',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                        resize: 'vertical'
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => {
+                        setShowDeleteModal(false);
+                        setDeleteReason('');
+                      }}
+                      style={{
+                        padding: '10px 20px',
+                        background: '#e2e8f0',
+                        color: '#475569',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontSize: '14px'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const token = localStorage.getItem('token');
+                          const storedUser = localStorage.getItem('ekametiUser');
+                          const user = storedUser ? JSON.parse(storedUser) : null;
+                          const response = await axios.post(getApiUrl(`kameti/request-delete/${kameti._id}`), {
+                            userId: user?._id || user?.id,
+                            reason: deleteReason.trim() || undefined
+                          }, {
+                            headers: { Authorization: `Bearer ${token}` }
+                          });
+                          if (response.data.success) {
+                            alert('✅ Deletion request created. All members must approve before kameti can be deleted.');
+                            fetchKametiDetails(); // Refresh
+                            setShowDeleteModal(false);
+                            setDeleteReason('');
+                          }
+                        } catch (error) {
+                          alert(`❌ Failed: ${error.response?.data?.message || error.message}`);
+                        }
+                      }}
+                      style={{
+                        padding: '10px 20px',
+                        background: '#f59e0b',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontSize: '14px'
+                      }}
+                    >
+                      Request Deletion
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* invite modal */}
       {showInviteModal && (
@@ -1022,6 +2125,233 @@ const KametiDetails = () => {
               </div>
             </div>
       </div>
+        </div>
+      )}
+
+      {/* Resolve Dispute Modal */}
+      {showResolveModal && selectedDispute && (
+        <div className="modal-overlay" onClick={() => {
+          setShowResolveModal(false);
+          setSelectedDispute(null);
+          setResolveData({ resolutionType: '', resolutionAmount: '', resolutionNotes: '' });
+        }}>
+          <div className="invite-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Resolve Dispute</h3>
+              <button onClick={() => {
+                setShowResolveModal(false);
+                setSelectedDispute(null);
+                setResolveData({ resolutionType: '', resolutionAmount: '', resolutionNotes: '' });
+              }} className="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px' }}>
+                  Case: <strong>{selectedDispute.caseId}</strong>
+                </p>
+                <p style={{ fontSize: '14px', color: '#64748b' }}>
+                  Reason: {selectedDispute.reasonLabel}
+                </p>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e293b' }}>
+                  Resolution Type <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <select
+                  value={resolveData.resolutionType}
+                  onChange={(e) => setResolveData({ ...resolveData, resolutionType: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">Select resolution type</option>
+                  <option value="refund">Refund</option>
+                  <option value="penalty">Penalty</option>
+                  <option value="adjustment">Adjustment</option>
+                  <option value="no_action">No Action</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e293b' }}>
+                  Resolution Amount (Optional)
+                </label>
+                <input
+                  type="number"
+                  value={resolveData.resolutionAmount}
+                  onChange={(e) => setResolveData({ ...resolveData, resolutionAmount: e.target.value })}
+                  placeholder="0.00"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e293b' }}>
+                  Resolution Notes <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <textarea
+                  value={resolveData.resolutionNotes}
+                  onChange={(e) => setResolveData({ ...resolveData, resolutionNotes: e.target.value })}
+                  placeholder="Enter resolution details..."
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => {
+                    setShowResolveModal(false);
+                    setSelectedDispute(null);
+                    setResolveData({ resolutionType: '', resolutionAmount: '', resolutionNotes: '' });
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                    color: '#64748b',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleResolveDispute}
+                  style={{
+                    padding: '10px 20px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Resolve Dispute
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Dispute Modal */}
+      {showRejectModal && selectedDispute && (
+        <div className="modal-overlay" onClick={() => {
+          setShowRejectModal(false);
+          setSelectedDispute(null);
+          setRejectionNotes('');
+        }}>
+          <div className="invite-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Reject Dispute</h3>
+              <button onClick={() => {
+                setShowRejectModal(false);
+                setSelectedDispute(null);
+                setRejectionNotes('');
+              }} className="modal-close">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '8px' }}>
+                  Case: <strong>{selectedDispute.caseId}</strong>
+                </p>
+                <p style={{ fontSize: '14px', color: '#64748b' }}>
+                  Reason: {selectedDispute.reasonLabel}
+                </p>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '8px', color: '#1e293b' }}>
+                  Rejection Notes <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <textarea
+                  value={rejectionNotes}
+                  onChange={(e) => setRejectionNotes(e.target.value)}
+                  placeholder="Enter reason for rejection..."
+                  rows={4}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => {
+                    setShowRejectModal(false);
+                    setSelectedDispute(null);
+                    setRejectionNotes('');
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                    color: '#64748b',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRejectDispute}
+                  style={{
+                    padding: '10px 20px',
+                    border: 'none',
+                    borderRadius: '8px',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Reject Dispute
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -6,9 +6,11 @@ import axios from 'axios';
 import NavBar from '../components/NavBar';
 import { useNavigate } from 'react-router-dom';
 import { getApiUrl } from '../config/api';
+import { useTranslation } from '../hooks/useTranslation';
 
 const Notifications = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);

@@ -21,10 +21,12 @@ class PaymentService {
         paymentMethod,
         transactionId,
         round,
-        totalRounds,
         dueDate,
         metadata = {}
       } = paymentData;
+
+      const kameti = await Kameti.findOne({ kametiId });
+      const totalRounds = kameti?.membersCount || 1;
       
       // Create main payment record
       const payment = new Payment({
@@ -285,6 +287,116 @@ class PaymentService {
       
     } catch (error) {
       console.error('❌ Error creating payment notification:', error);
+      throw error;
+    }
+  }
+
+  // Process loan transfers when lender receives kameti payout
+  static async processLoanTransfers(lenderId, kametiId, round) {
+    try {
+      console.log('🔄 Processing loan transfers for lender:', lenderId, 'kameti:', kametiId, 'round:', round);
+      
+      const LoanPledge = require('../models/LoanPledge');
+      const LoanRequest = require('../models/LoanRequest');
+      
+      // Find all captured pledges for this lender from this kameti that haven't been transferred yet
+      const pledges = await LoanPledge.find({
+        lenderId: lenderId,
+        kametiId: kametiId,
+        status: 'captured'
+      }).populate('loanId');
+
+      if (!pledges || pledges.length === 0) {
+        console.log('✅ No loan pledges to transfer');
+        return { transferred: 0, totalAmount: 0 };
+      }
+
+      let totalTransferred = 0;
+      const transfers = [];
+
+      for (const pledge of pledges) {
+        const loan = await LoanRequest.findById(pledge.loanId);
+        if (!loan) continue;
+
+        // Get borrower info
+        const borrower = await User.findById(loan.borrowerId);
+        if (!borrower) continue;
+
+        // Update pledge status to transferred
+        pledge.status = 'transferred';
+        pledge.transferredAt = new Date();
+        pledge.transferRound = round;
+        await pledge.save();
+
+        // Create notification for borrower
+        const transferNotification = {
+          type: 'loan_funded',
+          title: '💰 Loan Funded',
+          message: `Rs. ${pledge.amount.toLocaleString()} has been transferred to your loan account from lender's kameti payout.`,
+          data: {
+            loanId: loan._id,
+            amount: pledge.amount,
+            lenderId: lenderId,
+            kametiId: kametiId,
+            round: round,
+            timestamp: new Date()
+          },
+          read: false,
+          createdAt: new Date()
+        };
+
+        if (!borrower.notifications) {
+          borrower.notifications = [];
+        }
+        borrower.notifications.unshift(transferNotification);
+        await borrower.save();
+
+        // Create notification for lender
+        const lender = await User.findById(lenderId);
+        if (lender) {
+          const lenderNotification = {
+            type: 'loan_transferred',
+            title: '💸 Loan Transferred',
+            message: `Rs. ${pledge.amount.toLocaleString()} from your kameti payout has been transferred to borrower.`,
+            data: {
+              loanId: loan._id,
+              pledgeId: pledge._id,
+              amount: pledge.amount,
+              kametiId: kametiId,
+              round: round,
+              timestamp: new Date()
+            },
+            read: false,
+            createdAt: new Date()
+          };
+
+          if (!lender.notifications) {
+            lender.notifications = [];
+          }
+          lender.notifications.unshift(lenderNotification);
+          await lender.save();
+        }
+
+        totalTransferred += pledge.amount;
+        transfers.push({
+          pledgeId: pledge._id,
+          loanId: loan._id,
+          amount: pledge.amount,
+          borrowerEmail: borrower.email
+        });
+
+        console.log(`✅ Transferred Rs. ${pledge.amount} to borrower ${borrower.email} for loan ${loan._id}`);
+      }
+
+      console.log(`✅ Processed ${transfers.length} loan transfers, total: Rs. ${totalTransferred}`);
+      return {
+        transferred: transfers.length,
+        totalAmount: totalTransferred,
+        transfers: transfers
+      };
+
+    } catch (error) {
+      console.error('❌ Error processing loan transfers:', error);
       throw error;
     }
   }

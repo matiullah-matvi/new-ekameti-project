@@ -115,7 +115,7 @@ const userSchema = new mongoose.Schema({
   notifications: [{
     type: {
       type: String,
-      enum: ['payment_received', 'join_request', 'request_approved', 'request_rejected', 'kameti_update']
+      enum: ['payment_received', 'join_request', 'request_approved', 'request_rejected', 'kameti_update', 'dispute_raised', 'dispute_resolved']
     },
     title: String,
     message: String,

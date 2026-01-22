@@ -6,10 +6,12 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '../components/NavBar';
 import { getApiUrl } from '../config/api';
+import { useTranslation } from '../hooks/useTranslation';
 import '../styles/Dashboard.css';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // state for user data
   const [user, setUser] = useState(null);
@@ -141,11 +143,11 @@ const Dashboard = () => {
               <svg className="hero-badge-icon" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
-              <span>Welcome back, {user?.fullName || 'User'}</span>
+              <span>{t('dashboard.welcomeBack')}, {user?.fullName || t('common.welcome')}</span>
             </div>
 
-            <h1 className="hero-title">Your Financial Dashboard</h1>
-            <p className="hero-subtitle">Manage your kametis, track contributions, and achieve your savings goals</p>
+            <h1 className="hero-title">{t('dashboard.yourFinancialDashboard')}</h1>
+            <p className="hero-subtitle">{t('dashboard.manageKametis')}</p>
 
             {/* main action buttons */}
             <div className="hero-actions">
@@ -153,10 +155,10 @@ const Dashboard = () => {
                 <svg className="hero-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
-                <span>Create Kameti</span>
+                <span>{t('dashboard.createKameti')}</span>
               </button>
               <button onClick={() => navigate('/all-kametis')} className="hero-btn-secondary">
-                Browse All Kametis
+                {t('dashboard.browseAllKametis')}
               </button>
             </div>
           </div>

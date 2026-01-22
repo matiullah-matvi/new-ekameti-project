@@ -6,10 +6,12 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import NavBar from '../components/NavBar';
 import { getApiUrl } from '../config/api';
+import { useTranslation } from '../hooks/useTranslation';
 import '../styles/MyKametis.css';
 
 const MyKametis = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   // state variables
   const [user, setUser] = useState(null);
@@ -102,8 +104,8 @@ const MyKametis = () => {
       {/* Hero section */}
       <div className="my-kametis-hero">
         <div className="hero-content">
-          <h1 className="hero-title">My Kametis</h1>
-          <p className="hero-subtitle">All kametis you've created or joined</p>
+          <h1 className="hero-title">{t('myKametis.title')}</h1>
+          <p className="hero-subtitle">{t('myKametis.myKametis')}</p>
         </div>
       </div>
 
@@ -118,7 +120,7 @@ const MyKametis = () => {
               </svg>
             </div>
             <div className="stat-info">
-              <p className="stat-label">Created by Me</p>
+              <p className="stat-label">{t('myKametis.createdByMe')}</p>
               <p className="stat-value">{createdCount}</p>
             </div>
           </div>
@@ -130,7 +132,7 @@ const MyKametis = () => {
               </svg>
             </div>
             <div className="stat-info">
-              <p className="stat-label">Joined as Member</p>
+              <p className="stat-label">{t('myKametis.joinedAsMember')}</p>
               <p className="stat-value">{joinedCount}</p>
             </div>
           </div>
@@ -142,7 +144,7 @@ const MyKametis = () => {
               </svg>
             </div>
             <div className="stat-info">
-              <p className="stat-label">Active Kametis</p>
+              <p className="stat-label">{t('myKametis.activeKametis')}</p>
               <p className="stat-value">{activeCount}</p>
             </div>
           </div>
@@ -156,7 +158,7 @@ const MyKametis = () => {
             </svg>
             <input
               type="text"
-              placeholder="Search kametis..."
+              placeholder={t('myKametis.search')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="search-input"
@@ -168,13 +170,13 @@ const MyKametis = () => {
               className={`filter-tab ${filterStatus === 'all' ? 'active' : ''}`}
               onClick={() => setFilterStatus('all')}
             >
-              All
+              {t('myKametis.all')}
             </button>
             <button 
               className={`filter-tab ${filterStatus === 'Active' ? 'active' : ''}`}
               onClick={() => setFilterStatus('Active')}
             >
-              Active
+              {t('myKametis.active')}
             </button>
             <button 
               className={`filter-tab ${filterStatus === 'Pending' ? 'active' : ''}`}

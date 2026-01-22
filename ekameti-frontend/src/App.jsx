@@ -25,6 +25,16 @@ import CompleteProfile from './pages/CompleteProfile';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import TwoFactorSetup from './pages/TwoFactorSetup';
+import RaiseDispute from './pages/RaiseDispute';
+import MyDisputes from './pages/MyDisputes';
+import AdminDisputes from './pages/AdminDisputes';
+
+import PayoutManagement from './pages/PayoutManagement';
+import RiskDashboard from './pages/RiskDashboard';
+import P2PLanding from './pages/P2PLanding';
+import P2PCreateLoan from './pages/P2PCreateLoan';
+import P2PLoanList from './pages/P2PLoanList';
+import P2PLoanDetail from './pages/P2PLoanDetail';
 
 // ✅ Safe Wrapper to prevent KametiDetails crash
 import SafeKametiDetails from './pages/SafeKametiDetails';
@@ -34,8 +44,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   return (
-    <Router>
-      <Routes>
+      <Router>
+        <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -156,6 +166,79 @@ function App() {
           element={
             <ProtectedRoute>
               <MyKametis />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/raise-dispute"
+          element={
+            <ProtectedRoute>
+              <RaiseDispute />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-disputes"
+          element={
+            <ProtectedRoute>
+              <MyDisputes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-disputes"
+          element={
+            <ProtectedRoute>
+              <AdminDisputes />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/payouts/:kametiId"
+          element={
+            <ProtectedRoute>
+              <PayoutManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/risk-dashboard"
+          element={
+            <ProtectedRoute>
+              <RiskDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/p2p"
+          element={
+            <ProtectedRoute>
+              <P2PLanding />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/p2p/create-loan"
+          element={
+            <ProtectedRoute>
+              <P2PCreateLoan />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/p2p/loans"
+          element={
+            <ProtectedRoute>
+              <P2PLoanList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/p2p/loans/:id"
+          element={
+            <ProtectedRoute>
+              <P2PLoanDetail />
             </ProtectedRoute>
           }
         />

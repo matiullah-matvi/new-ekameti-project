@@ -25,7 +25,6 @@ const CreateKameti = () => {
     contributionFrequency: 'monthly',
     startDate: '',
     members: '',
-    rounds: '',
     payoutOrder: 'random',
     isPrivate: false,
     autoReminders: true,
@@ -87,29 +86,90 @@ const CreateKameti = () => {
     }
   };
 
-  // validate current step
+  // ✅ Enhanced validation with better error messages
   const validateStep = (step) => {
     const newErrors = {};
     
     if (step === 1) {
-      if (!formData.name.trim()) newErrors.name = 'Kameti name is required';
-      if (formData.name.length < 3) newErrors.name = 'Name must be at least 3 characters';
-      if (!formData.description.trim()) newErrors.description = 'Description is required';
-      if (!formData.amount || formData.amount < 1000) newErrors.amount = 'Minimum amount is Rs. 1,000';
+      const trimmedName = formData.name?.trim() || '';
+      const trimmedDescription = formData.description?.trim() || '';
+      
+      // Name validation
+      if (!trimmedName) {
+        newErrors.name = 'Kameti name is required';
+      } else if (trimmedName.length < 3) {
+        newErrors.name = 'Name must be at least 3 characters';
+      } else if (trimmedName.length > 100) {
+        newErrors.name = 'Name must not exceed 100 characters';
+      }
+      
+      // Description validation
+      if (!trimmedDescription) {
+        newErrors.description = 'Description is required';
+      } else if (trimmedDescription.length < 10) {
+        newErrors.description = 'Description must be at least 10 characters';
+      } else if (trimmedDescription.length > 500) {
+        newErrors.description = 'Description must not exceed 500 characters';
+      }
+      
+      // Amount validation
+      const amountNum = Number(formData.amount);
+      if (!formData.amount) {
+        newErrors.amount = 'Contribution amount is required';
+      } else if (isNaN(amountNum) || amountNum < 1000) {
+        newErrors.amount = 'Minimum amount is Rs. 1,000';
+      } else if (amountNum > 1000000) {
+        newErrors.amount = 'Maximum amount is Rs. 1,000,000';
+      }
     }
     
     if (step === 2) {
-      if (!formData.members || formData.members < 2) newErrors.members = 'Minimum 2 members required';
-      if (formData.members > 50) newErrors.members = 'Maximum 50 members allowed';
-      if (!formData.rounds || formData.rounds < 1) newErrors.rounds = 'At least 1 round required';
-      // removed validation: rounds can be different from members (each member gets payout once per round)
-      if (!formData.startDate) newErrors.startDate = 'Start date is required';
+      // Members validation
+      const membersNum = Number(formData.members);
+      if (!formData.members) {
+        newErrors.members = 'Number of members is required';
+      } else if (isNaN(membersNum) || membersNum < 2) {
+        newErrors.members = 'Minimum 2 members required';
+      } else if (membersNum > 50) {
+        newErrors.members = 'Maximum 50 members allowed';
+      } else if (!Number.isInteger(membersNum)) {
+        newErrors.members = 'Members count must be a whole number';
+      }
       
-      // validate start date is not in the past
+      // Start date validation
+      if (!formData.startDate) {
+        newErrors.startDate = 'Start date is required';
+      } else {
       const selectedDate = new Date(formData.startDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      if (selectedDate < today) newErrors.startDate = 'Start date cannot be in the past';
+        selectedDate.setHours(0, 0, 0, 0);
+        
+        if (isNaN(selectedDate.getTime())) {
+          newErrors.startDate = 'Invalid date format';
+        } else if (selectedDate < today) {
+          newErrors.startDate = 'Start date cannot be in the past';
+        } else {
+          const maxDate = new Date(today);
+          maxDate.setFullYear(maxDate.getFullYear() + 1);
+          if (selectedDate > maxDate) {
+            newErrors.startDate = 'Start date cannot be more than 1 year in the future';
+          }
+        }
+      }
+    }
+    
+    if (step === 3) {
+      // Late payment fee validation
+      if (formData.latePaymentFee) {
+        const lateFeeNum = Number(formData.latePaymentFee);
+        const amountNum = Number(formData.amount);
+        if (isNaN(lateFeeNum) || lateFeeNum < 0) {
+          newErrors.latePaymentFee = 'Late payment fee must be a positive number';
+        } else if (lateFeeNum > amountNum) {
+          newErrors.latePaymentFee = 'Late payment fee cannot exceed contribution amount';
+        }
+      }
     }
     
     setErrors(newErrors);
@@ -151,8 +211,8 @@ const CreateKameti = () => {
       contributionFrequency: formData.contributionFrequency,
       startDate: formData.startDate,
       membersCount: Number(formData.members),
-      round: `1 of ${formData.rounds}`,
-      totalRounds: Number(formData.rounds),
+      // rounds are derived (members == rounds)
+      round: `1 of ${Number(formData.members) || 1}`,
       payoutOrder: formData.payoutOrder,
       isPrivate: formData.isPrivate,
       autoReminders: formData.autoReminders,
@@ -179,9 +239,29 @@ const CreateKameti = () => {
       setLoading(false);
     } catch (err) {
       console.error('Error:', err.response?.data || err.message);
+      
+      // ✅ Enhanced error handling: Show specific validation errors
+      const errorData = err.response?.data;
+      let errorMessage = 'Failed to create Kameti. Please try again.';
+      
+      if (errorData) {
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.errors && Array.isArray(errorData.errors)) {
+          errorMessage = errorData.errors.join(', ');
+        } else if (errorData.missing && Array.isArray(errorData.missing)) {
+          errorMessage = `Missing required fields: ${errorData.missing.join(', ')}`;
+        }
+        
+        // ✅ Map backend errors to frontend form errors
+        if (errorData.field === 'name') {
+          setErrors(prev => ({ ...prev, name: errorMessage }));
+        }
+      }
+      
       setMessage({ 
         type: 'error', 
-        text: err.response?.data?.message || 'Failed to create Kameti. Please try again.' 
+        text: errorMessage
       });
       setLoading(false);
     }
@@ -294,6 +374,7 @@ const CreateKameti = () => {
                   <div className="form-group full-width">
                     <label className="form-label">
                       Kameti Name <span className="required">*</span>
+                      <span className="char-counter">({formData.name?.trim().length || 0}/100)</span>
                     </label>
                     <input
                       type="text"
@@ -302,23 +383,32 @@ const CreateKameti = () => {
                       onChange={handleChange}
                       placeholder="e.g., Family Savings Group"
                       className={`form-input ${errors.name ? 'error' : ''}`}
+                      maxLength={100}
                     />
                     {errors.name && <span className="error-text">{errors.name}</span>}
+                    {!errors.name && formData.name && (
+                      <span className="help-text">Choose a unique and descriptive name</span>
+                    )}
                   </div>
 
                   <div className="form-group full-width">
                     <label className="form-label">
                       Description <span className="required">*</span>
+                      <span className="char-counter">({formData.description?.trim().length || 0}/500)</span>
                     </label>
                     <textarea
                       name="description"
                       value={formData.description}
                       onChange={handleChange}
-                      placeholder="Brief description of the kameti purpose and goals"
+                      placeholder="Brief description of the kameti purpose and goals (minimum 10 characters)"
                       className={`form-textarea ${errors.description ? 'error' : ''}`}
                       rows="3"
+                      maxLength={500}
                     />
                     {errors.description && <span className="error-text">{errors.description}</span>}
+                    {!errors.description && formData.description && (
+                      <span className="help-text">Describe the purpose and goals of this kameti</span>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -335,10 +425,14 @@ const CreateKameti = () => {
                         placeholder="5000"
                         className={`form-input with-icon ${errors.amount ? 'error' : ''}`}
                         min="1000"
+                      max="1000000"
+                      step="100"
                       />
                     </div>
                     {errors.amount && <span className="error-text">{errors.amount}</span>}
-                    <span className="help-text">Minimum amount: Rs. 1,000</span>
+                    {!errors.amount && (
+                      <span className="help-text">Minimum: Rs. 1,000 | Maximum: Rs. 1,000,000</span>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -393,26 +487,25 @@ const CreateKameti = () => {
                       className={`form-input ${errors.members ? 'error' : ''}`}
                       min="2"
                       max="50"
+                      step="1"
                     />
                     {errors.members && <span className="error-text">{errors.members}</span>}
-                    <span className="help-text">Between 2 and 50 members</span>
+                    {!errors.members && (
+                      <span className="help-text">Between 2 and 50 members (total rounds = members count)</span>
+                    )}
                   </div>
 
                   <div className="form-group">
                     <label className="form-label">
-                      Total Rounds <span className="required">*</span>
+                      Total Rounds
                     </label>
                     <input
                       type="number"
-                      name="rounds"
-                      value={formData.rounds}
-                      onChange={handleChange}
-                      placeholder="10"
-                      className={`form-input ${errors.rounds ? 'error' : ''}`}
-                      min="1"
+                      value={formData.members || ''}
+                      readOnly
+                      className="form-input"
                     />
-                    {errors.rounds && <span className="error-text">{errors.rounds}</span>}
-                    <span className="help-text">Each round = one member gets payout. Can be more or less than member count.</span>
+                    <span className="help-text">Auto: total rounds = number of members</span>
                   </div>
 
                   <div className="form-group">
@@ -426,8 +519,16 @@ const CreateKameti = () => {
                       onChange={handleChange}
                       className={`form-input ${errors.startDate ? 'error' : ''}`}
                       min={new Date().toISOString().split('T')[0]}
+                      max={(() => {
+                        const maxDate = new Date();
+                        maxDate.setFullYear(maxDate.getFullYear() + 1);
+                        return maxDate.toISOString().split('T')[0];
+                      })()}
                     />
                     {errors.startDate && <span className="error-text">{errors.startDate}</span>}
+                    {!errors.startDate && formData.startDate && (
+                      <span className="help-text">Kameti will start on this date</span>
+                    )}
                   </div>
 
                   <div className="form-group">
@@ -463,7 +564,7 @@ const CreateKameti = () => {
                     <div className="summary-item">
                       <span className="summary-label">Duration</span>
                       <span className="summary-value">
-                        {formData.rounds} {formData.contributionFrequency === 'monthly' ? 'months' : 'periods'}
+                        {formData.members || 0} {formData.contributionFrequency === 'monthly' ? 'months' : 'periods'}
                       </span>
                     </div>
                   </div>
@@ -505,11 +606,16 @@ const CreateKameti = () => {
                         value={formData.latePaymentFee}
                         onChange={handleChange}
                         placeholder="0"
-                        className="form-input with-icon"
+                        className={`form-input with-icon ${errors.latePaymentFee ? 'error' : ''}`}
                         min="0"
+                        max={formData.amount || 1000000}
+                        step="10"
                       />
                     </div>
-                    <span className="help-text">Penalty for late contributions (optional)</span>
+                    {errors.latePaymentFee && <span className="error-text">{errors.latePaymentFee}</span>}
+                    {!errors.latePaymentFee && (
+                      <span className="help-text">Penalty for late contributions (optional, cannot exceed contribution amount)</span>
+                    )}
                   </div>
 
                   <div className="form-group full-width">

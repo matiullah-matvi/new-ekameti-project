@@ -78,6 +78,24 @@ router.post('/initiate', async (req, res) => {
       });
     }
 
+    // ✅ Check if kameti is completed/closed - prevent payments
+    if (kameti_id) {
+      const Kameti = require('../models/Kameti');
+      // Try to find by kametiId string first, then by MongoDB _id
+      let kameti = await Kameti.findOne({ kametiId: kameti_id });
+      if (!kameti && kameti_id.length === 24 && /^[0-9a-fA-F]{24}$/.test(kameti_id)) {
+        kameti = await Kameti.findById(kameti_id);
+      }
+      
+      if (kameti && kameti.status === 'Closed') {
+        console.log('❌ Payment blocked: Kameti is closed');
+        return res.status(400).json({
+          success: false,
+          message: 'This kameti is closed. No further payments are required.'
+        });
+      }
+    }
+
         console.log('💳 DEBUG: Initiating PayFast payment:', { amount, item_name, user_email, kameti_id });
         console.log('🔍 DEBUG: Kameti ID type:', typeof kameti_id);
         console.log('🔍 DEBUG: Kameti ID length:', kameti_id?.length);
@@ -299,8 +317,8 @@ router.post('/notify', async (req, res) => {
         kametiMongoId: kameti._id,
         userId: user._id,
         userEmail: user.email,
-        round: 1,
-        totalRounds: kameti.totalRounds,
+        round: kameti.currentRound || 1,
+        totalRounds: kameti.membersCount,
         amount: parseFloat(amount),
         paymentMethod: 'payfast',
         transactionId: transactionId,
@@ -337,6 +355,27 @@ router.post('/notify', async (req, res) => {
       );
       
       console.log('✅ Kameti member status updated');
+      
+      // ✅ Send payment reminders to unpaid members
+      try {
+        const PaymentReminderService = require('../services/PaymentReminderService');
+        await PaymentReminderService.sendPaymentReminders(kametiId);
+      } catch (reminderError) {
+        console.error('⚠️ Error sending payment reminders:', reminderError.message);
+      }
+      
+      // ✅ Check if round is ready and notify admin
+      try {
+        const PayoutService = require('../services/PayoutService');
+        const readiness = await PayoutService.checkRoundReadiness(kametiId);
+        if (readiness.ready) {
+          const PaymentReminderService = require('../services/PaymentReminderService');
+          await PaymentReminderService.sendAdminRoundReadyNotification(kametiId);
+          console.log('✅ Admin notified: Round is ready for payout');
+        }
+      } catch (readinessError) {
+        console.error('⚠️ Error checking round readiness:', readinessError.message);
+      }
       
       // Create payment notification
       const paymentNotification = {
@@ -453,6 +492,27 @@ router.post('/notify', async (req, res) => {
       
       if (kametiResult.matchedCount > 0) {
         console.log('🏷️ DEBUG: Kameti member status updated');
+        
+        // ✅ Send payment reminders to unpaid members
+        try {
+          const PaymentReminderService = require('../services/PaymentReminderService');
+          await PaymentReminderService.sendPaymentReminders(kametiId);
+        } catch (reminderError) {
+          console.error('⚠️ Error sending payment reminders:', reminderError.message);
+        }
+        
+        // ✅ Check if round is ready and notify admin
+        try {
+          const PayoutService = require('../services/PayoutService');
+          const readiness = await PayoutService.checkRoundReadiness(kametiId);
+          if (readiness.ready) {
+            const PaymentReminderService = require('../services/PaymentReminderService');
+            await PaymentReminderService.sendAdminRoundReadyNotification(kametiId);
+            console.log('✅ Admin notified: Round is ready for payout');
+          }
+        } catch (readinessError) {
+          console.error('⚠️ Error checking round readiness:', readinessError.message);
+        }
       } else {
         console.log('❌ DEBUG: No Kameti member found to update');
       }
@@ -577,7 +637,7 @@ router.post('/manual-update', async (req, res) => {
           userId: user._id,
           userEmail: user.email,
           round: 1,
-          totalRounds: kameti.totalRounds || 1,
+          totalRounds: kameti.membersCount,
           amount: parseFloat(amount),
           paymentMethod: 'payfast',
           transactionId: transactionId,
@@ -624,6 +684,27 @@ router.post('/manual-update', async (req, res) => {
           console.log('🔍 DEBUG: Kameti member update result:', kametiUpdateResult);
           if (kametiUpdateResult.matchedCount > 0) {
             console.log('✅ Kameti member status updated');
+            
+            // ✅ Send payment reminders to unpaid members
+            try {
+              const PaymentReminderService = require('../services/PaymentReminderService');
+              await PaymentReminderService.sendPaymentReminders(kametiId);
+            } catch (reminderError) {
+              console.error('⚠️ Error sending payment reminders:', reminderError.message);
+            }
+            
+            // ✅ Check if round is ready and notify admin
+            try {
+              const PayoutService = require('../services/PayoutService');
+              const readiness = await PayoutService.checkRoundReadiness(kametiId);
+              if (readiness.ready) {
+                const PaymentReminderService = require('../services/PaymentReminderService');
+                await PaymentReminderService.sendAdminRoundReadyNotification(kametiId);
+                console.log('✅ Admin notified: Round is ready for payout');
+              }
+            } catch (readinessError) {
+              console.error('⚠️ Error checking round readiness:', readinessError.message);
+            }
           } else {
             console.warn('⚠️ Kameti member update matched 0 records');
           }
@@ -854,6 +935,27 @@ router.post('/manual-update', async (req, res) => {
       
       if (kametiResult.matchedCount > 0) {
         console.log('🏷️ DEBUG: Kameti member status updated manually');
+        
+        // ✅ Send payment reminders to unpaid members
+        try {
+          const PaymentReminderService = require('../services/PaymentReminderService');
+          await PaymentReminderService.sendPaymentReminders(kametiId);
+        } catch (reminderError) {
+          console.error('⚠️ Error sending payment reminders:', reminderError.message);
+        }
+        
+        // ✅ Check if round is ready and notify admin
+        try {
+          const PayoutService = require('../services/PayoutService');
+          const readiness = await PayoutService.checkRoundReadiness(kametiId);
+          if (readiness.ready) {
+            const PaymentReminderService = require('../services/PaymentReminderService');
+            await PaymentReminderService.sendAdminRoundReadyNotification(kametiId);
+            console.log('✅ Admin notified: Round is ready for payout');
+          }
+        } catch (readinessError) {
+          console.error('⚠️ Error checking round readiness:', readinessError.message);
+        }
       } else {
         console.log('❌ DEBUG: No Kameti member found to update manually');
       }

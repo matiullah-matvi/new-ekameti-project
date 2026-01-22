@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import TwoFactorVerifyModal from '../components/TwoFactorVerifyModal';
 import { getApiUrl, getFrontendUrl } from '../config/api';
+import { useTranslation } from '../hooks/useTranslation';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -13,6 +15,7 @@ const Login = () => {
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [twoFactorData, setTwoFactorData] = useState(null);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const handleChange = (e) => {
     setFormData(prev => ({
@@ -110,18 +113,23 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      {/* Language Switcher */}
+      <div className="absolute top-4 right-4">
+        <LanguageSwitcher />
+      </div>
+      
       {/* Header */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold text-2xl">
-            eKameti
+            {t('nav.eKameti')}
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
-          Welcome back
+          {t('auth.welcomeBack')}
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Sign in to your account to continue
+          {t('auth.signInToContinue')}
         </p>
       </div>
 
@@ -131,7 +139,7 @@ const Login = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="form-group">
               <label htmlFor="email" className="form-label">
-                Email address
+                {t('auth.email')}
               </label>
               <input
                 id="email"
@@ -140,7 +148,7 @@ const Login = () => {
                 autoComplete="email"
                 required
                 className="input-field"
-                placeholder="Enter your email"
+                placeholder={t('auth.enterEmail')}
                 value={formData.email}
                 onChange={handleChange}
               />
@@ -148,7 +156,7 @@ const Login = () => {
 
             <div className="form-group">
               <label htmlFor="password" className="form-label">
-                Password
+                {t('auth.password')}
               </label>
               <div className="relative">
                 <input
@@ -158,7 +166,7 @@ const Login = () => {
                   autoComplete="current-password"
                   required
                   className="input-field pr-12"
-                  placeholder="Enter your password"
+                  placeholder={t('auth.enterPassword')}
                   value={formData.password}
                   onChange={handleChange}
                 />
@@ -183,13 +191,13 @@ const Login = () => {
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                  Remember me
+                  {t('auth.rememberMe')}
                 </label>
               </div>
 
               <div className="text-sm">
                 <Link to="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
-                  Forgot your password?
+                  {t('auth.forgotPassword')}
                 </Link>
               </div>
             </div>
@@ -203,10 +211,10 @@ const Login = () => {
                 {isLoading ? (
                   <>
                     <div className="loading-spinner mr-2"></div>
-                    Signing in...
+                    {t('common.loading')}
                   </>
                 ) : (
-                  'Sign in'
+                  t('auth.signIn')
                 )}
               </button>
             </div>
@@ -218,7 +226,7 @@ const Login = () => {
                 <div className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                <span className="px-2 bg-white text-gray-500">{t('common.or')} {t('common.continue')} {t('common.with')}</span>
               </div>
             </div>
 
@@ -240,9 +248,9 @@ const Login = () => {
           </div>
 
           <p className="mt-6 text-center text-sm text-gray-600">
-            Don't have an account?{' '}
+            {t('auth.dontHaveAccount')}{' '}
             <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
-              Sign up here
+              {t('auth.signUp')}
             </Link>
           </p>
         </div>

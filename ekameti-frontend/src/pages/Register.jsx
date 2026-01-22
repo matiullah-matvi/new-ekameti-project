@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getApiUrl, getFrontendUrl } from '../config/api';
+import { useTranslation } from '../hooks/useTranslation';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const Register = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     fullName: '',
     username: '',
@@ -359,8 +362,10 @@ const Register = () => {
 
       console.log('✅ OTP Response:', response.data);
 
-      // Store form data in localStorage for OTP verification
-      localStorage.setItem('registrationData', JSON.stringify(formData));
+      // Store form data in localStorage for OTP verification (CNIC image stays in state)
+      const dataToStore = { ...formData };
+      delete dataToStore.cnicImage; // Don't store file in localStorage
+      localStorage.setItem('registrationData', JSON.stringify(dataToStore));
 
       setMessage('✅ OTP sent to your email! Check your inbox.');
 
@@ -385,14 +390,25 @@ const Register = () => {
       // Get registration data from localStorage
       const registrationData = JSON.parse(localStorage.getItem('registrationData') || '{}');
       
-      // Verify OTP and create user account
-      const response = await axios.post(getApiUrl('users/verify-otp'), {
-        fullName: registrationData.fullName,
-        email: registrationData.email,
-        password: registrationData.password,
-        cnic: registrationData.cnic,
-        phone: registrationData.phone,
-        otp: otp
+      // Create FormData to send file
+      const formDataToSend = new FormData();
+      formDataToSend.append('fullName', registrationData.fullName);
+      formDataToSend.append('email', registrationData.email);
+      formDataToSend.append('password', registrationData.password);
+      formDataToSend.append('cnic', registrationData.cnic);
+      formDataToSend.append('phone', registrationData.phone);
+      formDataToSend.append('otp', otp);
+      
+      // Append CNIC image file if it exists
+      if (formData.cnicImage) {
+        formDataToSend.append('cnicImage', formData.cnicImage);
+      }
+      
+      // Verify OTP and create user account with CNIC image
+      const response = await axios.post(getApiUrl('users/verify-otp'), formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
       });
 
       console.log('✅ Verification Success:', response.data);
@@ -418,24 +434,29 @@ const Register = () => {
   };
 
   const steps = [
-    { number: 1, title: 'Personal Info', description: 'Basic information' },
-    { number: 2, title: 'Security', description: 'Password setup' },
-    { number: 3, title: 'Verification', description: 'Identity verification' }
+    { number: 1, title: t('register.personalInfo'), description: t('register.basicInformation') },
+    { number: 2, title: t('register.security'), description: t('register.passwordSetup') },
+    { number: 3, title: t('register.verification'), description: t('register.identityVerification') }
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Language Switcher */}
+      <div className="absolute top-4 right-4 z-50">
+        <LanguageSwitcher />
+      </div>
+      
       {/* Header */}
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center">
               <div className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-xl">
-                eKameti
+                {t('nav.eKameti')}
               </div>
             </Link>
             <Link to="/" className="text-gray-600 hover:text-blue-600 font-medium">
-              Already have an account? Sign in
+              {t('auth.alreadyHaveAccount')} {t('auth.signIn')}
             </Link>
           </div>
         </div>
@@ -481,8 +502,8 @@ const Register = () => {
         {/* Registration Form */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
           <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-            <h1 className="text-2xl font-bold">Create Your Account</h1>
-            <p className="text-blue-100">Join thousands of users saving together</p>
+            <h1 className="text-2xl font-bold">{t('register.createAccount')}</h1>
+            <p className="text-blue-100">{t('register.joinThousands')}</p>
           </div>
 
           {/* Google Sign Up */}
@@ -498,7 +519,7 @@ const Register = () => {
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
-              Sign up with Google
+              {t('register.signUpWithGoogle')}
             </button>
             <div className="mt-6">
               <div className="relative">
@@ -506,7 +527,7 @@ const Register = () => {
                   <div className="w-full border-t border-gray-300" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Or register with email</span>
+                  <span className="px-2 bg-white text-gray-500">{t('register.orRegisterWithEmail')}</span>
                 </div>
               </div>
             </div>
@@ -519,7 +540,7 @@ const Register = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="mb-6">
                     <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
-                      Full Name *
+                      {t('register.fullName')} *
                     </label>
                     <input
                       id="fullName"
@@ -527,7 +548,7 @@ const Register = () => {
                       type="text"
                       required
                       className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white ${errors.fullName ? 'border-red-500' : ''}`}
-                      placeholder="Enter your full name"
+                      placeholder={t('register.enterFullName')}
                       value={formData.fullName}
                       onChange={handleChange}
                     />
@@ -538,7 +559,7 @@ const Register = () => {
 
                   <div className="mb-6">
                     <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                      Username *
+                      {t('register.username')} *
                     </label>
                     <input
                       id="username"
@@ -546,7 +567,7 @@ const Register = () => {
                       type="text"
                       required
                       className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white ${errors.username ? 'border-red-500' : ''}`}
-                      placeholder="Choose a username"
+                      placeholder={t('register.chooseUsername')}
                       value={formData.username}
                       onChange={handleChange}
                     />
@@ -559,7 +580,7 @@ const Register = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="mb-6">
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                      Email Address *
+                      {t('register.emailAddress')} *
                     </label>
                     <input
                       id="email"
@@ -567,7 +588,7 @@ const Register = () => {
                       type="email"
                       required
                       className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white ${errors.email ? 'border-red-500' : ''}`}
-                      placeholder="Enter your email"
+                      placeholder={t('register.enterEmail')}
                       value={formData.email}
                       onChange={handleChange}
                     />
@@ -578,7 +599,7 @@ const Register = () => {
 
                   <div className="mb-6">
                     <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                      Phone Number *
+                      {t('register.phoneNumber')} *
                     </label>
                     <div className="relative">
                       <input
@@ -587,7 +608,7 @@ const Register = () => {
                         type="tel"
                         required
                         className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white ${errors.phone ? 'border-red-500' : ''} ${formData.phone.length === 11 && !errors.phone ? 'border-green-500' : ''}`}
-                        placeholder="03001234567"
+                        placeholder={t('register.phoneFormat')}
                         value={formData.phone}
                         onChange={handleChange}
                         maxLength="11"
@@ -609,8 +630,8 @@ const Register = () => {
                       </div>
                     )}
                     <div className="mt-1 text-xs text-gray-500">
-                      <p>• Must start with 03 (Pakistani mobile number)</p>
-                      <p>• Format: 03001234567</p>
+                      <p>• {t('register.mustStartWith03')}</p>
+                      <p>• {t('register.format')}: {t('register.phoneFormat')}</p>
                     </div>
                   </div>
                 </div>
@@ -621,7 +642,7 @@ const Register = () => {
                     onClick={nextStep}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
                   >
-                    Next Step
+                    {t('register.nextStep')}
                   </button>
                 </div>
               </div>
@@ -632,7 +653,7 @@ const Register = () => {
               <div className="space-y-6">
                 <div className="mb-6">
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                    Password *
+                    {t('auth.password')} *
                   </label>
                   <div className="relative">
                     <input
@@ -641,7 +662,7 @@ const Register = () => {
                       type={showPassword ? 'text' : 'password'}
                       required
                       className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white pr-12 ${errors.password ? 'border-red-500' : ''}`}
-                      placeholder="Create a strong password"
+                      placeholder={t('register.createPassword')}
                       value={formData.password}
                       onChange={handleChange}
                     />
@@ -665,7 +686,7 @@ const Register = () => {
 
                 <div className="mb-6">
                   <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirm Password *
+                    {t('register.confirmPassword')} *
                   </label>
                   <div className="relative">
                     <input
@@ -674,7 +695,7 @@ const Register = () => {
                       type={showConfirmPassword ? 'text' : 'password'}
                       required
                       className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white pr-12 ${errors.confirmPassword ? 'border-red-500' : ''}`}
-                      placeholder="Confirm your password"
+                      placeholder={t('register.reEnterPassword')}
                       value={formData.confirmPassword}
                       onChange={handleChange}
                     />
@@ -699,14 +720,14 @@ const Register = () => {
                     onClick={prevStep}
                     className="bg-white hover:bg-gray-50 text-gray-700 font-medium py-3 px-6 rounded-lg border border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md"
                   >
-                    Previous
+                    {t('register.previous')}
                   </button>
                   <button
                     type="button"
                     onClick={nextStep}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
                   >
-                    Next Step
+                    {t('register.nextStep')}
                   </button>
                 </div>
               </div>

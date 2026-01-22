@@ -28,7 +28,8 @@ const paymentRecordSchema = new mongoose.Schema({
   },
   totalRounds: {
     type: Number,
-    required: true
+    // derived from Kameti membersCount (members == rounds)
+    default: 1
   },
   
   // Payment details

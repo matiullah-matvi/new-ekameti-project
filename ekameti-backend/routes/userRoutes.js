@@ -4,12 +4,18 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const crypto = require('crypto');
+const fs = require('fs');
 const User = require('../models/User');
 const Otp = require('../models/Otp');
 const router = express.Router();
 const { sendOTPEmail, sendWelcomeEmail, sendPasswordResetEmail } = require('../services/emailService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key'; // Replace with your real secret in production
+
+// Ensure uploads directory exists
+if (!fs.existsSync('uploads')) {
+  fs.mkdirSync('uploads', { recursive: true });
+}
 
 // Multer configuration for profile completion
 const storage = multer.diskStorage({
@@ -270,7 +276,7 @@ router.post('/register', async (req, res) => {
 });
 
 // ✅ VERIFY OTP + Create User + Send Welcome Email
-router.post('/verify-otp', async (req, res) => {
+router.post('/verify-otp', upload.single('cnicImage'), async (req, res) => {
   try {
     const { fullName, email, password, cnic, phone, otp } = req.body;
 
@@ -292,13 +298,18 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ message: '❌ Incorrect OTP' });
     }
 
+    // CNIC image is required
+    if (!req.file) {
+      return res.status(400).json({ message: 'CNIC image is required for registration' });
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Generate username from email (before @ symbol)
     const username = email.split('@')[0];
 
-    // Create new user
+    // Create new user with CNIC image
     const newUser = new User({
       fullName,
       username,
@@ -306,6 +317,9 @@ router.post('/verify-otp', async (req, res) => {
       phone,
       cnic,
       password: hashedPassword,
+      cnicImage: req.file.filename,
+      identityVerified: true,
+      verificationDate: new Date()
     });
 
     await newUser.save();
@@ -706,5 +720,5 @@ router.post('/update-payment-status', async (req, res) => {
     });
   }
 });
-
 module.exports = router;
+

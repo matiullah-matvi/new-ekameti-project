@@ -28,7 +28,7 @@ const kametiSchema = new mongoose.Schema({
   // members and rounds
   membersCount: { type: Number, required: true },
   round: { type: String },
-  totalRounds: { type: Number, required: true },
+  // totalRounds removed: rounds are derived from membersCount (traditional kameti)
   currentRound: { type: Number, default: 1 },
   
   // payout settings
@@ -46,7 +46,7 @@ const kametiSchema = new mongoose.Schema({
   // status
   status: { 
     type: String, 
-    enum: ['Pending', 'Active', 'Completed', 'Cancelled'],
+    enum: ['Pending', 'Active', 'Completed', 'Closed', 'Cancelled'],
     default: 'Pending' 
   },
 
@@ -102,7 +102,42 @@ const kametiSchema = new mongoose.Schema({
   
   // financial tracking
   totalCollected: { type: Number, default: 0 },
-  totalDisbursed: { type: Number, default: 0 }
+  totalDisbursed: { type: Number, default: 0 },
+
+  // recent activities
+  activities: [{
+    type: {
+      type: String,
+      enum: ['payment', 'member_joined', 'member_left', 'dispute_raised', 'dispute_resolved', 'payout', 'round_completed'],
+      required: true
+    },
+    title: { type: String, required: true },
+    message: { type: String, required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    userName: { type: String },
+    userEmail: { type: String },
+    data: { type: mongoose.Schema.Types.Mixed },
+    createdAt: { type: Date, default: Date.now }
+  }],
+
+  // delete request (for non-closed kametis - requires all members to agree)
+  deleteRequest: {
+    requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    requestedAt: { type: Date },
+    reason: { type: String },
+    memberApprovals: [{
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      email: { type: String },
+      name: { type: String },
+      approved: { type: Boolean, default: false },
+      approvedAt: { type: Date }
+    }],
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected', 'cancelled'],
+      default: 'pending'
+    }
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Kameti', kametiSchema);

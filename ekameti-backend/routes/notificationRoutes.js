@@ -278,4 +278,69 @@ router.post('/join-response', async (req, res) => {
   }
 });
 
+// ✅ DELETE REQUEST NOTIFICATION: Notify members about deletion request
+router.post('/delete-request', async (req, res) => {
+  try {
+    const { userId, userEmail, userName, kametiId, kametiName, reason, adminName } = req.body;
+
+    console.log('🔔 Delete request notification:', { userEmail, userName, kametiId, kametiName });
+
+    // Find the user
+    const User = require('../models/User');
+    const user = userId ? await User.findById(userId) : await User.findOne({ email: userEmail });
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Create notification data
+    const notification = {
+      type: 'delete_request',
+      title: '⚠️ Kameti Deletion Request',
+      message: `${adminName || 'Admin'} has requested to delete Kameti "${kametiName}". Your approval is required.`,
+      data: {
+        kametiId,
+        kametiName,
+        reason: reason || '',
+        adminName: adminName || 'Admin',
+        timestamp: new Date()
+      },
+      read: false,
+      createdAt: new Date()
+    };
+
+    // Add notification to user's notifications array
+    if (!user.notifications) {
+      user.notifications = [];
+    }
+    user.notifications.unshift(notification);
+    
+    // Keep only last 50 notifications
+    if (user.notifications.length > 50) {
+      user.notifications = user.notifications.slice(0, 50);
+    }
+
+    await user.save();
+
+    console.log('✅ Delete request notification sent to user:', user.email);
+
+    res.json({ 
+      success: true, 
+      message: 'Delete request notification sent to user',
+      userEmail: user.email
+    });
+
+  } catch (error) {
+    console.error('❌ Error sending delete request notification:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send delete request notification',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

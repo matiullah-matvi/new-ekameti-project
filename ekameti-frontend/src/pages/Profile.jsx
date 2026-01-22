@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import NavBar from '../components/NavBar';
 import { getApiUrl } from '../config/api';
+import { useTranslation } from '../hooks/useTranslation';
 import '../styles/Profile.css';
 
 const Profile = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('personal');
   const [isEditing, setIsEditing] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -231,9 +233,9 @@ const Profile = () => {
   };
 
   const tabs = [
-    { id: 'personal', label: 'Personal Info', icon: '👤' },
-    { id: 'security', label: 'Security', icon: '🔒' },
-    { id: 'preferences', label: 'Preferences', icon: '⚙️' }
+    { id: 'personal', label: t('profile.personalInfo'), icon: '👤' },
+    { id: 'security', label: t('profile.security'), icon: '🔒' },
+    { id: 'preferences', label: t('profile.preferences'), icon: '⚙️' }
   ];
 
   if (loading) {
@@ -242,7 +244,7 @@ const Profile = () => {
         <NavBar />
         <div className="loading-state">
           <div className="spinner"></div>
-          <p>Loading profile...</p>
+          <p>{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -255,8 +257,8 @@ const Profile = () => {
       {/* Hero Section */}
       <div className="profile-hero">
         <div className="hero-content">
-          <h1 className="hero-title">Profile Settings</h1>
-          <p className="hero-subtitle">Manage your account and preferences</p>
+          <h1 className="hero-title">{t('profile.title')}</h1>
+          <p className="hero-subtitle">{t('profileAdditional.updatePersonalInfo')}</p>
         </div>
         </div>
 

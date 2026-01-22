@@ -6,10 +6,12 @@ import axios from 'axios';
 import NavBar from '../components/NavBar';
 import { useNavigate } from 'react-router-dom';
 import { getApiUrl } from '../config/api';
+import { useTranslation } from '../hooks/useTranslation';
 import '../styles/AllKametis.css';
 
 const AllKametis = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   
   // state management
   const [kametis, setKametis] = useState([]);
@@ -157,6 +159,22 @@ const AllKametis = () => {
 
     // send join request
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d347dbc0-ed63-420d-af24-1cc526296fcc',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          sessionId:'debug-session',
+          runId:'pre-fix',
+          hypothesisId:'H8',
+          location:'pages/AllKametis.jsx:handleJoinKameti',
+          message:'Sending join request',
+          data:{kametiMongoId:kameti?._id,userIdPresent:!!user?._id,userEmailPresent:!!user?.email,membersCount:kameti?.membersCount,currentMembers:kameti?.members?.length},
+          timestamp:Date.now()
+        })
+      }).catch(()=>{});
+      // #endregion
+
       const response = await axios.post(
         getApiUrl(`kameti/request-join/${kameti._id}`),
         {
@@ -171,7 +189,27 @@ const AllKametis = () => {
       fetchAllKametis();
     } catch (error) {
       console.error('Error sending join request:', error);
-      alert(error.response?.data?.message || 'Failed to send join request');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d347dbc0-ed63-420d-af24-1cc526296fcc',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          sessionId:'debug-session',
+          runId:'pre-fix',
+          hypothesisId:'H8',
+          location:'pages/AllKametis.jsx:handleJoinKameti',
+          message:'Join request failed',
+          data:{status:error?.response?.status,apiMessage:error?.response?.data?.message,errMessage:error?.message},
+          timestamp:Date.now()
+        })
+      }).catch(()=>{});
+      // #endregion
+      const reason =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Failed to send join request';
+      alert(reason);
     }
   };
 
@@ -183,6 +221,8 @@ const AllKametis = () => {
   // check if user can join a kameti
   const canJoinKameti = (kameti) => {
     if (!user) return false;
+    // ✅ Check if kameti is closed/completed - cannot join
+    if (kameti.status === 'Closed' || kameti.status === 'Completed') return false;
     const isAlreadyMember = kameti.members?.some(m => m.email === user.email);
     const hasPendingRequest = kameti.joinRequests?.some(
       r => r.email === user.email && r.status === 'pending'
@@ -194,6 +234,8 @@ const AllKametis = () => {
   // get join button text
   const getJoinButtonText = (kameti) => {
     if (!user) return 'Login to Join';
+    // ✅ Check if kameti is closed/completed
+    if (kameti.status === 'Closed' || kameti.status === 'Completed') return 'Closed';
     const isAlreadyMember = kameti.members?.some(m => m.email === user.email);
     if (isAlreadyMember) return 'Already Joined';
     const hasPendingRequest = kameti.joinRequests?.some(
@@ -212,8 +254,8 @@ const AllKametis = () => {
       {/* hero section */}
       <div className="all-kametis-hero">
         <div className="hero-content">
-          <h1 className="hero-title">Browse All Kametis</h1>
-          <p className="hero-subtitle">Find and join kametis that match your savings goals</p>
+          <h1 className="hero-title">{t('allKametis.browseAll')}</h1>
+          <p className="hero-subtitle">{t('allKametis.findAndJoin')}</p>
           
           {/* search bar */}
           <div className="hero-search">
@@ -222,7 +264,7 @@ const AllKametis = () => {
             </svg>
             <input
               type="text"
-              placeholder="Search by name, description, or creator..."
+              placeholder={t('allKametis.search')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="search-input"

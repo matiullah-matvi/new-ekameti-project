@@ -142,6 +142,10 @@
   @apply text-sm text-red-600 mt-1;
 }
 
+.char-counter {
+  @apply text-xs text-gray-400 font-normal ml-2;
+}
+
 .help-text {
   @apply text-sm text-gray-500 mt-1;
 }

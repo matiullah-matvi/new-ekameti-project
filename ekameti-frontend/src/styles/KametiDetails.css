@@ -524,6 +524,15 @@
   }
 }
 
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 .modal-header {
   @apply flex items-center justify-between p-6 border-b border-gray-200;
 }

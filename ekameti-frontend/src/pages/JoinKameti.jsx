@@ -182,7 +182,7 @@ const JoinKameti = () => {
                   {kameti.status || 'Active'}
                 </span>
                 <span className="round-info">
-                  Round {kameti.currentRound || 1} of {kameti.totalRounds || 'N/A'}
+                  Round {kameti.currentRound || 1} of {kameti.membersCount || 'N/A'}
                 </span>
               </div>
 
@@ -193,9 +193,34 @@ const JoinKameti = () => {
                 </div>
               )}
 
+              {/* Closed Kameti Message */}
+              {(kameti.status === 'Closed' || kameti.status === 'Completed') && (
+                <div style={{
+                  padding: '20px',
+                  background: '#f0fdf4',
+                  border: '2px solid #22c55e',
+                  borderRadius: '12px',
+                  marginBottom: '20px',
+                  textAlign: 'center'
+                }}>
+                  <h3 style={{ color: '#16a34a', marginBottom: '8px' }}>🔒 Kameti Closed</h3>
+                  <p style={{ color: '#15803d', fontSize: '14px' }}>
+                    This kameti is closed. All rounds have been completed and no new members can join.
+                  </p>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="action-buttons">
-                <button onClick={handleJoin} className="action-btn primary">
+                <button 
+                  onClick={handleJoin} 
+                  className="action-btn primary"
+                  disabled={kameti.status === 'Closed' || kameti.status === 'Completed'}
+                  style={{
+                    opacity: (kameti.status === 'Closed' || kameti.status === 'Completed') ? 0.5 : 1,
+                    cursor: (kameti.status === 'Closed' || kameti.status === 'Completed') ? 'not-allowed' : 'pointer'
+                  }}
+                >
                   <span className="action-btn-content">
                     <svg className="action-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

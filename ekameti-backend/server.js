@@ -25,11 +25,15 @@ const kametiRoutes = require('./routes/kametiRoutes');
 const userRoutes = require('./routes/userRoutes');
 const otpRoutes = require('./routes/otpRoutes');
 const payfastRoutes = require('./routes/payfastRoutes');
+const payoutRoutes = require('./routes/payoutRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
-const notificationRoutes = require('./routes/notificationRoutes'); // ✅ Added
+const notificationRoutes = require('./routes/notificationRoutes');
 const ocrRoutes = require('./routes/ocrRoutes');
 const authRoutes = require('./routes/authRoutes');
 const twoFactorRoutes = require('./routes/twoFactorRoutes');
+const riskRoutes = require('./routes/riskRoutes');
+const p2pRoutes = require('./routes/p2pRoutes');
+const disputeRoutes = require('./routes/disputeRoutes');
 
 //  Middleware
 // CORS configuration (development-friendly, env-driven)
@@ -60,6 +64,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static('uploads'));
 
+const axios = require('axios');
+const clientLogHandler = async (req, res) => {
+  try {
+    const { location, message, data, timestamp } = req.body || {};
+    const payload = { location, message, data, timestamp: timestamp || Date.now() };
+    console.log('[client-log]', payload);
+  } catch (e) {
+    console.log('[client-log] failed', e?.message);
+  }
+  return res.status(204).send();
+};
+app.post('/debug/client-log', clientLogHandler);
+app.post('/api/debug/client-log', clientLogHandler);
+
 // Session middleware for Passport
 app.use(session({
   secret: process.env.SESSION_SECRET || 'ekameti-session-secret',
@@ -84,11 +102,15 @@ app.use('/api/kameti', kametiRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/otp', otpRoutes);
 app.use('/api/payfast', payfastRoutes);
+app.use('/api/payouts', payoutRoutes);
 app.use('/api/payments', paymentRoutes);
-app.use('/api/notifications', notificationRoutes); // ✅ Added
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/ocr', ocrRoutes);
-app.use('/api/auth', authRoutes); // Google OAuth routes
-app.use('/api/2fa', twoFactorRoutes); // Two-Factor Authentication routes
+app.use('/api/auth', authRoutes);
+app.use('/api/2fa', twoFactorRoutes);
+app.use('/api/risk', riskRoutes);
+app.use('/api/p2p', p2pRoutes);
+app.use('/api/disputes', disputeRoutes);
 
 
 
@@ -101,7 +123,6 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', time: new Date().toISOString() });
 });
-// ❌ OLD REGISTER ROUTE - COMMENTED OUT (Now using /api/users/register with OTP)
 /*
 app.post('/api/register', upload.single('cnicImage'), async (req, res) => {
   try {
@@ -171,7 +192,7 @@ app.post('/api/register', upload.single('cnicImage'), async (req, res) => {
     // Enhanced Identity Verification
     const cnicValidation = validateCNICFormat(cnic);
     if (!cnicValidation.valid) {
-      return res.status(400).json({ message: `❌ Identity verification failed: ${cnicValidation.error}` });
+      return res.status(400).json({ message: `Identity verification failed: ${cnicValidation.error}` });
     }
 
     const nameValidation = validateNameCNICConsistency(fullName, cnic);
@@ -186,7 +207,7 @@ app.post('/api/register', upload.single('cnicImage'), async (req, res) => {
 
     // Check if email already exists
     const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: '❌ Email already exists' });
+    if (existingUser) return res.status(400).json({ message: 'Email already exists' });
 
     // Check if CNIC already exists
     const existingCNIC = await User.findOne({ cnic: cnicValidation.cleanCNIC });
@@ -212,7 +233,7 @@ app.post('/api/register', upload.single('cnicImage'), async (req, res) => {
 
     await newUser.save();
     
-    console.log('✅ User registered with verified identity:', {
+    console.log('User registered:', {
       fullName,
       email,
       cnic: cnicValidation.cleanCNIC,
@@ -220,7 +241,7 @@ app.post('/api/register', upload.single('cnicImage'), async (req, res) => {
     });
     
     res.status(201).json({ 
-      message: '✅ Account created successfully with verified identity!',
+      message: 'Account created successfully with verified identity!',
       user: {
         fullName: newUser.fullName,
         email: newUser.email,
@@ -228,13 +249,12 @@ app.post('/api/register', upload.single('cnicImage'), async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Register error:', error.message);
-    res.status(500).json({ message: '❌ Registration failed', error: error.message });
+    console.error('Register error:', error.message);
+    res.status(500).json({ message: 'Registration failed', error: error.message });
   }
 });
 */
 
-// ❌ OLD LOGIN ROUTE - DEPRECATED (Now using /api/users/login with 2FA support)
 // Kept for reference but should not be used
 /*
 app.post('/api/login', async (req, res) => {
@@ -242,12 +262,11 @@ app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: '❌ User not found' });
+    if (!user) return res.status(404).json({ message: 'User not found' });
     
-    // Compare hashed password with plain text password
     const bcrypt = require('bcryptjs');
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) return res.status(401).json({ message: '❌ Invalid password' });
+    if (!isPasswordValid) return res.status(401).json({ message: 'Invalid password' });
 
     // Generate JWT token
     const jwt = require('jsonwebtoken');
@@ -267,7 +286,7 @@ app.post('/api/login', async (req, res) => {
     await user.save();
 
     res.status(200).json({
-      message: '✅ Login successful',
+      message: 'Login successful',
       token: token, // send token to frontend
       user: {
         _id: user._id,
@@ -278,55 +297,51 @@ app.post('/api/login', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('❌ Login error:', error.message);
-    res.status(500).json({ message: '❌ Login failed', error: error.message });
+    console.error('Login error:', error.message);
+    res.status(500).json({ message: 'Login failed', error: error.message });
   }
 });
 */
 
-// ✅ Payment Routes are now handled by payfastRoutes (registered above)
-
-// ✅ Connect to DB & Start Server
 const connectDB = async () => {
   try {
     if (!process.env.MONGO_URI) {
-      throw new Error('❌ MONGO_URI environment variable is not defined. Please check your .env file.');
+      throw new Error('MONGO_URI environment variable is not defined. Please check your .env file.');
     }
     
     const conn = await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 30000, // 30 seconds
-      socketTimeoutMS: 45000, // 45 seconds
-      connectTimeoutMS: 30000, // 30 seconds
-      maxPoolSize: 10 // Maintain up to 10 socket connections
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 30000,
+      maxPoolSize: 10
     });
     
-    console.log('✅ MongoDB connected:', conn.connection.host);
+    console.log('MongoDB connected:', conn.connection.host);
     
     const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+    app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
   } catch (error) {
-    console.error('❌ MongoDB connection error:', error.message);
+    console.error('MongoDB connection error:', error.message);
     process.exit(1);
   }
 };
 
-// Handle MongoDB connection events
 mongoose.connection.on('connected', () => {
-  console.log('✅ Mongoose connected to MongoDB');
+  console.log('Mongoose connected to MongoDB');
 });
 
 mongoose.connection.on('error', (err) => {
-  console.error('❌ Mongoose connection error:', err);
+  console.error('Mongoose connection error:', err);
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.log('⚠️ Mongoose disconnected from MongoDB');
+  console.log('Mongoose disconnected from MongoDB');
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
   await mongoose.connection.close();
-  console.log('🔌 MongoDB connection closed through app termination');
+  console.log('MongoDB connection closed through app termination');
   process.exit(0);
 });
 
